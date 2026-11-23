@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+
+<html lang="de">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>KickCoach v4.0 – Sensorbasiertes Schusstraining</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Google Fonts: Inter (Apple UI), Chakra Petch (Block Athletic Titles), JetBrains Mono (Telemetry) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@700&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cream: '#F6F4EE',
+            sage: '#A6B5A4',
+            sageDark: '#829680',
+            terracotta: '#C27655',
+            terracottaDark: '#A85E3E',
+            sand: '#E3BA78',
+            sandLight: '#F3E2C3',
+            charcoal: '#2B2A29',
+            slateBall: '#7A7A7A',
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            display: ['Chakra Petch', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    :root {
+      --bg-cream: #F6F4EE;
+      --terracotta: #C27655;
+      --sand: #E3BA78;
+      --charcoal: #2B2A29;
+      /* 5-Tier Score & Heatmap Color System */
+      --tier-red: #EF4444;     /* < 50% Schlecht */
+      --tier-orange: #F97316;  /* 50-69% In Ordnung */
+      --tier-green: #10B981;   /* 70-84% Gut */
+      --tier-blue: #1D4ED8;    /* 85-94% Sehr gut */
+      --tier-purple: #8B5CF6;  /* >= 95% Exzellent */
+    }
+
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #161615;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #2B2A29;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    /* Apple Human Interface Glassmorphism */
+    .glass-header {
+      background: rgba(166, 181, 164, 0.90);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+    }
+
+    .glass-pill {
+      background: rgba(238, 235, 226, 0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 8px 24px -4px rgba(43, 42, 41, 0.08);
+    }
+
+    .apple-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      box-shadow: 0 10px 28px -6px rgba(43, 42, 41, 0.08), 0 2px 6px -1px rgba(43, 42, 41, 0.04);
+      border-radius: 22px;
+    }
+
+    .terracotta-card {
+      background: linear-gradient(145deg, #C97D5C 0%, #B86B4A 100%);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      box-shadow: 0 10px 24px -5px rgba(168, 94, 62, 0.36), inset 0 1px 1px rgba(255, 255, 255, 0.32);
+      border-radius: 20px;
+      transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .terracotta-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px -5px rgba(168, 94, 62, 0.44), inset 0 1px 1px rgba(255, 255, 255, 0.38);
+    }
+
+    .terracotta-card:active {
+      transform: scale(0.985);
+    }
+
+    .athletic-title {
+      font-family: 'Chakra Petch', sans-serif;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* Screen Transitions */
+    .screen-view {
+      display: none;
+      animation: screenAppear 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .screen-view.active {
+      display: flex;
+    }
+
+    @keyframes screenAppear {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Smooth Accordion */
+    .accordion-body {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.36s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.26s ease, margin-top 0.26s ease;
+    }
+    .accordion-body.open {
+      max-height: 540px;
+      opacity: 1;
+      margin-top: 12px;
+    }
+
+    /* =================================================================== */
+    /* 1.8-SECOND 3D SPLASH ANIMATION KEYFRAMES (EXACT SPECIFICATION)      */
+    /* =================================================================== */
+    /* Leg swing (0.0s - 0.38s) */
+    @keyframes splashLegKick {
+      0%   { transform: rotate(28deg) translate(-18px, 12px); }
+      35%  { transform: rotate(-22deg) translate(8px, -6px); }
+      65%  { transform: rotate(-14deg) translate(4px, -2px); opacity: 1; }
+      100% { transform: rotate(-14deg) translate(4px, -2px); opacity: 0; }
+    }
+
+    /* Ball 3D flight to crossbar -> Rebound to camera -> Morph into Waben-BG (3.0s total) */
+    @keyframes splashBall3D {
+      0% {
+        /* At boot impact point */
+        transform: translate(-65px, 30px) scale(1) rotate(0deg);
+        opacity: 1;
+      }
+      44% {
+        /* Hits the crossbar (Latte) at top-right goal, smaller for 3D depth illusion */
+        transform: translate(92px, -96px) scale(0.36) rotate(260deg);
+        opacity: 1;
+      }
+      76% {
+        /* Rebounds straight into center of phone display, becoming huge */
+        transform: translate(0px, 18px) scale(7.2) rotate(520deg);
+        opacity: 0.92;
+      }
+      100% {
+        /* 3.0s: Settles & fades seamlessly into the semi-transparent Waben-Hintergrund */
+        transform: translate(0px, 24px) scale(9.2) rotate(560deg);
+        opacity: 0.20;
+      }
+    }
+
+    /* Crossbar Impact Flash */
+    @keyframes crossbarImpactPulse {
+      0%, 39% { transform: scale(0.2); opacity: 0; }
+      44%     { transform: scale(1.1); opacity: 1; }
+      62%     { transform: scale(2.2); opacity: 0; }
+      100%    { transform: scale(2.2); opacity: 0; }
+    }
+
+    /* Massive Title Zoom at end of 3.0s splash */
+    @keyframes splashTitleZoom {
+      0%, 15% { transform: scale(0.86) translateY(12px); opacity: 0; }
+      35%, 72% { transform: scale(1) translateY(0px); opacity: 1; }
+      100% { transform: scale(1.45) translateY(-10px); opacity: 0; }
+    }
+
+    .run-splash-leg {
+      transform-origin: 90px 20px;
+      animation: splashLegKick 1.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .run-splash-ball {
+      transform-origin: center center;
+      animation: splashBall3D 3.0s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+    }
+    .run-crossbar-flash {
+      transform-origin: 278px 78px;
+      animation: crossbarImpactPulse 3.0s ease-out forwards;
+    }
+    .run-splash-title {
+      animation: splashTitleZoom 3.0s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* Scrollbars */
+    .no-scrollbar::-webkit-scrollbar { width: 4px; }
+    .no-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .no-scrollbar::-webkit-scrollbar-thumb { background: rgba(43, 42, 41, 0.16); border-radius: 9999px; }
+  
+    .preview-mode-card { opacity: .72; filter: saturate(.72); }
+    .preview-mode-card:hover { opacity: .88; }
+    #trainingShoeSvg text { user-select: none; }
+    #shotGoalPickSvg { touch-action: manipulation; }
+    .validation-mode-active { background:#C27655 !important; color:#fff !important; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-0 sm:p-4 bg-neutral-900">
+<!-- Desktop / Developer Control Bar (Outside Phone Frame on larger screens) -->
+<div class="w-full max-w-[435px] mb-2 hidden sm:flex items-center justify-between px-3.5 py-2 rounded-2xl bg-neutral-800/95 border border-neutral-700 text-xs text-neutral-300 shadow-lg">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+<span class="font-bold text-white">KickCoach v4.0</span>
+<span class="text-neutral-400" id="desktopScreenLabel">Hauptmenü</span>
+</div>
+<div class="flex items-center gap-1.5">
+<button class="px-2.5 py-1 rounded-lg bg-neutral-700 hover:bg-neutral-600 text-amber-300 font-semibold transition" onclick="openLexiconModal()">
+        📖 Lexikon
+      </button>
+<button class="px-2.5 py-1 rounded-lg bg-neutral-700 hover:bg-neutral-600 text-white font-semibold transition" onclick="openConnectionModal()">
+        Verbindung
+      </button>
+</div>
+</div>
+<!-- ===================================================================== -->
+<!-- MOBILE PHONE VIEWPORT SHELL                                           -->
+<!-- ===================================================================== -->
+<div class="relative w-full max-w-[435px] h-[100dvh] sm:h-[875px] sm:max-h-[93vh] bg-cream sm:rounded-[44px] shadow-2xl overflow-hidden flex flex-col border-0 sm:border-[6px] sm:border-neutral-800" id="appViewport">
+<!-- =================================================================== -->
+<!-- 0. 3.0-SECOND 3D SPLASH SCREEN OVERLAY (Einführung-11.jpg Flow)     -->
+<!-- =================================================================== -->
+<div class="absolute inset-0 z-50 bg-cream flex flex-col items-center justify-between p-6 overflow-hidden transition-opacity duration-300" id="splashScreenOverlay">
+<div class="w-full flex items-center justify-between text-[11px] font-bold text-neutral-400 z-20">
+<span>SMART BOOT COACHING</span>
+<span class="font-mono text-terracotta">KICKCOACH V4.0</span>
+</div>
+<!-- 3D Animation Stage: Leg Swing -> Dashed Trajectory -> Goal Crossbar -> Rebound to Waben-BG -->
+<div class="relative w-full h-[360px] flex items-center justify-center my-auto">
+<svg class="w-full h-full overflow-visible" viewbox="0 0 380 300" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<lineargradient id="splashSand" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#E5C481"></stop>
+<stop offset="100%" stop-color="#D4A959"></stop>
+</lineargradient>
+</defs>
+<!-- 3D Perspective Goal in Upper Right -->
+<g id="splashGoal" transform="translate(205, 58)">
+<!-- Goal Net Depth Lines -->
+<path d="M0 0 L18 14 V82 L0 88 M142 0 L156 14 V82 L142 88 M18 14 H156" fill="rgba(227,186,120,0.12)" stroke="#3B3A37" stroke-width="2"></path>
+<!-- Net Mesh -->
+<path d="M24 0 V86 M48 0 V86 M72 0 V86 M96 0 V86 M120 0 V86 M4 22 H148 M4 44 H148 M4 66 H148" stroke="#3B3A37" stroke-opacity="0.38" stroke-width="0.9"></path>
+<!-- Front Goal Frame & Crossbar (Latte) -->
+<path d="M0 88 V0 H142 V88" fill="none" stroke="#2B2A29" stroke-linejoin="round" stroke-width="5.5"></path>
+</g>
+<!-- Dashed 3D Flight Trajectory Curve (Foot -> Crossbar) -->
+<path d="M125 198 Q 185 88, 278 62" fill="none" opacity="0.75" stroke="#C27655" stroke-dasharray="5 5" stroke-width="2.5"></path>
+<!-- Crossbar Impact Ring at t = 0.8s -->
+<g class="run-crossbar-flash" id="splashCrossbarFlash">
+<circle cx="278" cy="62" fill="none" r="18" stroke="#EF4444" stroke-width="4"></circle>
+<circle cx="278" cy="62" fill="#F97316" r="8"></circle>
+</g>
+<!-- Swinging Leg with Red/Gold Boot (01_bein_mit_schuh.png vector) -->
+<g class="run-splash-leg" id="splashLegGroup">
+<!-- White Sock / Leg -->
+<path d="M72 8 L42 88 L22 128 L64 148 L92 98 L114 22 Z" fill="#F7F5EE" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></path>
+<!-- Yellow/Gold Shin & Ankle Guard -->
+<path d="M42 88 L20 130 L62 152 L84 106 Z" fill="#E3BA78" stroke="#2B2A29" stroke-width="3"></path>
+<!-- Terracotta/Red Football Boot with Studs -->
+<path d="M20 128 C4 134, 2 150, 14 164 L78 218 C90 226, 104 216, 96 200 L62 146 Z" fill="#C85A3B" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></path>
+<!-- Boot Sole & Studs -->
+<path d="M10 158 L82 220" stroke="#E3BA78" stroke-linecap="round" stroke-width="5"></path>
+<path d="M18 168 L13 175 M34 182 L29 189 M56 200 L51 207 M72 213 L67 220" stroke="#2B2A29" stroke-linecap="round" stroke-width="4"></path>
+</g>
+<!-- 3D Rebounding Soccer Ball (02_fussball.png -> Wabenball Morph) -->
+<g class="run-splash-ball" id="splashBallGroup" transform="translate(190, 165)">
+<circle cx="0" cy="0" fill="url(#splashSand)" r="34" stroke="#2B2A29" stroke-width="3"></circle>
+<!-- Center Pentagon -->
+<polygon fill="#7A7A7A" points="0,-14 13,-4 8,11 -8,11 -13,-4" stroke="#2B2A29" stroke-width="2.2"></polygon>
+<!-- Honeycomb Seams -->
+<path d="M0,-14 V-34 M13,-4 L32,-10 M8,11 L22,27 M-8,11 L-22,27 M-13,-4 L-32,-10" stroke="#2B2A29" stroke-width="2.2"></path>
+<!-- Outer Grey Patches -->
+<path d="M-12,-31 L12,-31 L6,-22 L-6,-22 Z" fill="#7A7A7A"></path>
+<path d="M29,-4 L22,18 L15,8 L20,-6 Z" fill="#7A7A7A"></path>
+<path d="M-29,-4 L-22,18 L-15,8 L-20,-6 Z" fill="#7A7A7A"></path>
+</g>
+</svg>
+</div>
+<!-- Massive Block Typography ("SENSORBASIERTES SCHUSSTRAINING") -->
+<div class="run-splash-title text-center z-20 pb-4" id="splashTitleGroup">
+<h1 class="athletic-title text-3xl sm:text-4xl font-extrabold text-charcoal tracking-wider leading-tight">
+          SENSORBASIERTES<br/>SCHUSSTRAINING
+        </h1>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- PERMANENT HONEYCOMB SOCCER BALL BACKGROUND (WABEN-HINTERGRUND)      -->
+<!-- =================================================================== -->
+<div class="pointer-events-none absolute inset-0 z-0 overflow-hidden transition-opacity duration-500" id="wabenBackgroundLayer">
+<svg class="w-full h-full object-cover opacity-[0.36]" fill="none" viewbox="0 0 435 875" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<lineargradient id="bgSandGrad" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#E5C481"></stop>
+<stop offset="100%" stop-color="#D4A959"></stop>
+</lineargradient>
+<lineargradient id="bgGreyGrad" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#9A9996"></stop>
+<stop offset="100%" stop-color="#767572"></stop>
+</lineargradient>
+</defs>
+<ellipse cx="217" cy="438" fill="#EFECE4" rx="268" ry="380" stroke="#2B2A29" stroke-opacity="0.35" stroke-width="4"></ellipse>
+<!-- Top Left & Right Sand Hexagons -->
+<polygon fill="url(#bgSandGrad)" points="15,120 155,70 208,195 142,318 5,282 -25,180" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></polygon>
+<polygon fill="url(#bgSandGrad)" points="208,195 155,70 308,65 428,145 438,285 288,318" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></polygon>
+<!-- Center Upper Grey Pentagon -->
+<polygon fill="url(#bgGreyGrad)" points="208,195 288,318 258,442 166,442 142,318" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></polygon>
+<!-- Middle Left & Right Sand Hexagons -->
+<polygon fill="url(#bgSandGrad)" points="5,282 142,318 166,442 116,568 -10,548 -35,410" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></polygon>
+<polygon fill="url(#bgSandGrad)" points="288,318 438,285 468,415 432,552 308,568 258,442" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></polygon>
+<!-- Center Lower Sand Hexagon -->
+<polygon fill="url(#bgSandGrad)" points="166,442 258,442 308,568 258,690 166,690 116,568" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></polygon>
+<!-- Bottom Grey Panels -->
+<polygon fill="url(#bgGreyGrad)" points="-10,548 116,568 166,690 96,770 -15,710" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></polygon>
+<polygon fill="url(#bgGreyGrad)" points="308,568 432,552 442,705 328,770 258,690" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></polygon>
+<polygon fill="url(#bgGreyGrad)" points="166,690 258,690 328,770 217,800 96,770" stroke="#2B2A29" stroke-linejoin="round" stroke-width="3.5"></polygon>
+</svg>
+</div>
+<!-- =================================================================== -->
+<!-- GLOBAL HEADER BAR                                                   -->
+<!-- =================================================================== -->
+<header class="glass-header relative z-30 px-4 py-3 flex items-center justify-between shrink-0 min-h-[68px]">
+<!-- Top-Left: Sensor Connection Status Icon (Your Boot Sketch Icons) -->
+<button class="flex items-center gap-2 p-1.5 rounded-2xl bg-white/80 hover:bg-white shadow-sm border border-white transition active:scale-95" id="headerSensorBtn" onclick="toggleSensorConnection()" title="Sensor verbinden oder trennen">
+<!-- State 1: Disconnected (Red Open Boot with Hanging Laces) -->
+<div class="w-11 h-9 flex items-center justify-center" id="svgSensorDisconnected">
+<svg class="w-full h-full" fill="none" viewbox="0 0 120 85" xmlns="http://www.w3.org/2000/svg">
+<path d="M18 22 C16 35, 14 48, 16 60 C17 65, 25 65, 32 64 C55 64, 85 67, 104 62 C112 59, 110 49, 100 42 C84 32, 68 20, 58 12 C51 7, 43 12, 41 20 C35 24, 24 16, 18 22 Z" fill="#FFF5F5" stroke="#EF4444" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path>
+<path d="M22 65 L22 72 L29 72 L29 65 M38 65 L38 72 L45 72 L45 65 M74 66 L74 73 L81 73 L81 66 M92 64 L92 71 L99 71 L99 64" stroke="#EF4444" stroke-linecap="round" stroke-width="2.5"></path>
+<path d="M52 18 L68 24 M55 24 L74 30 M58 31 L79 36" stroke="#EF4444" stroke-linecap="round" stroke-width="2.5"></path>
+<!-- Open hanging laces -->
+<path d="M54 20 C46 38, 42 58, 39 78" stroke="#DC2626" stroke-linecap="round" stroke-width="3"></path>
+<path d="M62 24 C61 44, 60 62, 57 81" stroke="#DC2626" stroke-linecap="round" stroke-width="3"></path>
+<circle cx="104" cy="16" fill="#EF4444" r="6"></circle>
+</svg>
+</div>
+<!-- State 2: Connected (Green Boot on Soccer Ball) -->
+<div class="w-11 h-9 hidden items-center justify-center" id="svgSensorConnected">
+<svg class="w-full h-full" fill="none" viewbox="0 0 120 95" xmlns="http://www.w3.org/2000/svg">
+<circle cx="82" cy="64" fill="#ECFDF5" r="24" stroke="#10B981" stroke-width="3"></circle>
+<polygon fill="#A7F3D0" points="82,51 91,58 88,69 76,69 73,58" stroke="#10B981" stroke-width="2"></polygon>
+<path d="M82 40 L82 51 M91 58 L104 54 M88 69 L97 81 M76 69 L66 81 M73 58 L59 54" stroke="#10B981" stroke-width="2"></path>
+<path d="M58 12 C67 8, 79 16, 85 24 C89 30, 82 39, 73 46 C58 58, 42 74, 24 82 C15 85, 11 78, 15 68 C22 52, 34 36, 42 22 C46 16, 52 14, 58 12 Z" fill="#ECFDF5" stroke="#10B981" stroke-linejoin="round" stroke-width="3"></path>
+<path d="M32 39 L45 43 M28 46 L41 50 M24 53 L37 57 M21 60 L33 64" stroke="#059669" stroke-linecap="round" stroke-width="3"></path>
+<circle cx="104" cy="16" fill="#10B981" r="6"></circle>
+</svg>
+</div>
+<div class="pr-1 text-left">
+<div class="text-xs font-extrabold leading-tight text-emerald-700" id="sensorHeaderStatus">Verbunden</div>
+</div>
+</button>
+<!-- Center Header Slot: L/R Foot Toggle (Screen 2/3) OR Timer (Screen 4) OR Title (Screen 5/6) -->
+<div class="flex items-center justify-center">
+<!-- L/R Foot Switcher (Rechter Fuß / Linker Fuß) -->
+<div class="inline-flex items-center rounded-2xl bg-white/85 p-1 border border-white shadow-sm" id="headerCenterBadge">
+<button class="px-3.5 py-1.5 rounded-xl text-[11px] font-extrabold text-charcoal/70 hover:text-charcoal transition" id="btnFootL" onclick="setActiveFoot('L')">L</button>
+<button class="px-3.5 py-1.5 rounded-xl text-[11px] font-extrabold bg-terracotta text-white shadow-sm transition" id="btnFootR" onclick="setActiveFoot('R')">R</button>
+</div>
+<!-- Training Duration Pill (Screen 4) -->
+<div class="hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-charcoal text-sand font-mono text-sm font-bold shadow-md border border-sand/40" id="headerCenterTimer">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+<span id="trainingTimerDisplay">00:00</span>
+</div>
+<!-- Screen Title (Screens 5 & 6) -->
+<h1 class="hidden text-base font-extrabold text-charcoal tracking-tight" id="headerCenterTitle">
+          Trainingsbericht
+        </h1>
+</div>
+<!-- Right Header Slot -->
+<div class="flex items-center gap-1.5">
+<!-- Lexikon (Vokabelliste) Info Button -->
+<button class="w-10 h-11 rounded-2xl bg-white/80 hover:bg-white border border-white shadow-sm flex items-center justify-center transition active:scale-95 text-charcoal" id="headerRightLexiconBtn" onclick="openLexiconModal()" title="Lexikon / Datenblatt öffnen">
+<svg class="w-5 h-5 text-terracotta" fill="none" stroke="currentColor" stroke-width="2.3" viewbox="0 0 24 24">
+<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- History Clock Button (Screens 1, 2, 3) -->
+<button class="w-11 h-11 rounded-2xl bg-white/80 hover:bg-white border border-white shadow-sm flex items-center justify-center transition active:scale-95" id="headerRightHistoryBtn" onclick="navigateTo('screen-history')" title="Trainingshistorie öffnen">
+<svg class="w-7 h-7 text-charcoal" fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M11 16 C14.5 9.8, 21.2 6, 28.8 6.5 C38.5 7.2, 45.5 15.8, 44.5 25.5 C43.5 35.2, 34.8 42.2, 25 41.5 C16.5 40.9, 9.6 34.8, 8 26.5" stroke="currentColor" stroke-linecap="round" stroke-width="3.2"></path>
+<path d="M10 7.5 L10 17 L19.5 15.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.2"></path>
+<path d="M25 14.5 L25 24.5 L32.5 29" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.2"></path>
+</svg>
+</button>
+<!-- Clickable Info Pill "(i) Basic / Vollspann" (Screen 4) -->
+<button class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/90 hover:bg-white border border-charcoal/20 shadow-sm text-xs font-bold text-charcoal transition active:scale-95" id="headerRightDrillInfoBtn" onclick="openDrillInfoModal()">
+<svg class="w-4 h-4 text-terracotta shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="9.5"></circle>
+<path d="M12 10.5v5.5M12 7.5h.01" stroke-linecap="round"></path>
+</svg>
+<span class="truncate max-w-[105px]" id="headerDrillBadgeText">Basic / Vollspann</span>
+</button>
+<!-- History Filter Funnel Button (Screen 6) -->
+<button class="hidden items-center gap-1.5 px-3 py-2 rounded-2xl bg-white/90 hover:bg-white border border-terracotta/40 shadow-sm text-xs font-extrabold text-terracotta transition active:scale-95" id="headerRightFilterBtn" onclick="toggleHistoryFilterDrawer()">
+<span>Filter</span>
+<span class="hidden w-4 h-4 rounded-full bg-terracotta text-white text-[10px] items-center justify-center" id="filterActiveCountBadge">1</span>
+<svg class="w-5 h-5" fill="none" viewbox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+<path d="M4 7 H32 L21 20 V30 L15 26 V20 L4 7 Z" fill="rgba(194, 118, 85, 0.16)" stroke="#C27655" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path>
+</svg>
+</button>
+</div>
+</header>
+<!-- =================================================================== -->
+<!-- POP-UP MELDUNGEN (TOAST MODALS FROM SKETCH 1)                       -->
+<!-- "Achtung! Dein Schuh ist offen..." & "Verbindung hergestellt!"      -->
+<!-- =================================================================== -->
+<div class="pointer-events-none absolute top-[74px] inset-x-4 z-40 flex flex-col items-center transition-all duration-300 opacity-0 -translate-y-3" id="sensorPopupBanner">
+<div class="pointer-events-auto w-full max-w-[375px] rounded-2xl p-4 shadow-2xl border-2 backdrop-blur-xl flex items-start gap-3.5 bg-white/95 border-neutral-300" id="sensorPopupBox">
+<div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-extrabold text-base" id="sensorPopupBadge">
+          !
+        </div>
+<div class="flex-1 text-left">
+<h4 class="text-sm font-extrabold text-charcoal" id="sensorPopupHeadline">Achtung! Dein Schuh ist offen.</h4>
+<p class="text-xs text-neutral-600 mt-0.5 leading-relaxed" id="sensorPopupBody">
+            Klicke erneut auf das Schuh-Symbol oben links, um die Verbindung herzustellen.
+          </p>
+</div>
+<button class="text-neutral-400 hover:text-charcoal p-1 font-bold" onclick="hideSensorToast()">✕</button>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- MAIN SCROLLABLE SCREEN CONTENT                                      -->
+<!-- =================================================================== -->
+<main class="relative z-10 flex-1 overflow-y-auto no-scrollbar flex flex-col justify-between">
+<!-- ================================================================= -->
+<!-- SCREEN 1 & 2: HAUPTMENÜ & AUSWAHL EINES TRAININGS                 -->
+<!-- ================================================================= -->
+<section class="screen-view active flex-col flex-1 px-5 pt-5 pb-8" id="screen-home">
+<!-- Title Pill ("Wähle Dein Training") - 1.8s Intro Button cleanly removed -->
+<div class="flex items-center justify-between mb-5">
+<div class="glass-pill px-5 py-3 rounded-2xl text-left shadow-sm w-full flex items-center justify-between">
+<div>
+<span class="block text-[10px] font-extrabold uppercase tracking-widest text-terracotta">Hauptmenü</span>
+<h2 class="text-2xl font-extrabold text-charcoal tracking-tight">Wähle Dein Training</h2>
+</div>
+
+</div>
+</div>
+<div class="apple-card p-3 mb-4 flex items-center justify-between gap-3">
+<div><strong class="block text-xs font-extrabold text-charcoal">Validierungsmodus</strong><span class="block text-[10px] text-neutral-500 mt-0.5">Zusätzliche Labels erfassen und CSV-Datensatz speichern</span></div>
+<button aria-pressed="false" class="px-3 py-2 rounded-xl bg-neutral-200 text-neutral-600 text-[11px] font-extrabold" id="validationModeToggle" onclick="toggleValidationMode()">Aus</button>
+</div>
+
+<!-- 3 Expandable Training Mode Cards (BASICS, FREISTÖSSE, TIME ATTACK) -->
+<div class="flex flex-col gap-4 my-auto">
+<!-- 1. BASICS (Default Expanded) -->
+<div class="terracotta-card p-4 text-white cursor-pointer" onclick="toggleHomeModeCard('Basics')">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="w-2.5 h-8 rounded-full bg-sand"></span>
+<span class="athletic-title text-3xl sm:text-4xl font-bold tracking-wider">BASICS</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center transition-transform duration-300" id="modeChevron-Basics" style="transform: rotate(180deg)">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg>
+</div>
+</div>
+<div class="accordion-body open" id="modeBody-Basics">
+<div class="pt-2.5 border-t border-white/25">
+<p class="text-sm font-medium text-white/95 mb-3">
+                  Freies Schießen ohne Zeitdruck – Fokus auf saubere Stoßmechanik &amp; Konstanz.
+                </p>
+<!-- Vector Illustration recreating 01_basic.png -->
+<div class="w-full h-36 rounded-xl overflow-hidden bg-[#E5C278] border border-white/30 shadow-inner mb-3.5">
+<svg class="w-full h-full object-cover" viewbox="0 0 360 160" xmlns="http://www.w3.org/2000/svg">
+<rect fill="#E5BE74" height="160" width="360"></rect>
+<path d="M0 0 H140 C110 45, 70 30, 35 75 C10 105, 0 90, 0 0 Z" fill="#9BB09A"></path>
+<path d="M240 0 H360 V160 H260 C275 115, 250 85, 290 60 C320 40, 250 25, 240 0 Z" fill="#9BB09A"></path>
+<g transform="translate(142, 62)">
+<rect fill="none" height="52" rx="2" stroke="#3D352E" stroke-width="3" width="110" x="0" y="0"></rect>
+<path d="M0 0 L10 10 V52 L0 52 M110 0 L120 10 V52 L110 52 M10 10 H120" fill="none" stroke="#3D352E" stroke-width="2"></path>
+<path d="M15 0 V52 M30 0 V52 M45 0 V52 M60 0 V52 M75 0 V52 M90 0 V52 M0 13 H115 M0 26 H115 M0 39 H115" stroke="#3D352E" stroke-opacity="0.5" stroke-width="0.8"></path>
+</g>
+<path d="M105 118 Q 165 25, 242 35 T 310 62" fill="none" stroke="#3D352E" stroke-dasharray="3 3" stroke-width="1.5"></path>
+<path d="M105 118 Q 170 65, 205 78" fill="none" stroke="#3D352E" stroke-dasharray="3 3" stroke-width="1.5"></path>
+<circle cx="242" cy="35" fill="#E5BE74" r="10" stroke="#3D352E" stroke-width="1.8"></circle>
+<circle cx="205" cy="78" fill="#E5BE74" r="7" stroke="#3D352E" stroke-width="1.5"></circle>
+<g transform="translate(36, 48)">
+<path d="M35 12 L15 48 C10 56, 14 64, 22 68 L48 92 C52 95, 58 92, 55 85 L38 48 L56 18" fill="#C86D4B" stroke="#3D352E" stroke-width="2.2"></path>
+<circle cx="66" cy="72" fill="#E5BE74" r="18" stroke="#3D352E" stroke-width="2.2"></circle>
+<polygon fill="#7D7A74" points="66,64 73,69 70,77 62,77 59,69" stroke="#3D352E" stroke-width="1.4"></polygon>
+</g>
+</svg>
+</div>
+<button class="w-full py-3 rounded-xl bg-sageDark hover:bg-[#71856F] text-white font-bold text-base shadow-md border border-white/40 transition flex items-center justify-center gap-2" onclick="event.stopPropagation(); chooseModeAndGoToTechniques('Basics')">
+<span>Starten</span>
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+</button>
+</div>
+</div>
+</div>
+<!-- 2. FREISTÖSSE -->
+<div class="terracotta-card p-4 text-white cursor-pointer preview-mode-card" onclick="toggleHomeModeCard('Freistöße')">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="w-2.5 h-8 rounded-full bg-sand"></span>
+<span class="athletic-title text-3xl sm:text-4xl font-bold tracking-wider">FREISTÖSSE</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center transition-transform duration-300" id="modeChevron-Freistöße">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg>
+</div>
+</div>
+<div class="accordion-body" id="modeBody-Freistöße"><div class="text-[10px] font-extrabold uppercase tracking-wider text-sandLight mb-2">In Entwicklung / Vorschau</div>
+<div class="pt-2.5 border-t border-white/25">
+<p class="text-sm font-medium text-white/95 mb-3">
+                  Ruhende Bälle über die gegnerische Mauer – Fokus auf Effet und präzise Flugkurve.
+                </p>
+<div class="w-full h-36 rounded-xl overflow-hidden bg-[#E8E4D9] border border-white/30 shadow-inner mb-3">
+<svg class="w-full h-full object-cover" viewbox="0 0 360 160" xmlns="http://www.w3.org/2000/svg">
+<rect fill="#EFECE4" height="105" width="360"></rect>
+<rect fill="#B8C4B1" height="55" width="360" y="105"></rect>
+<path d="M0 30 H300 M0 50 H300 M0 70 H300 M40 15 V90 M90 15 V90 M140 15 V90 M190 15 V90 M240 15 V90 M290 15 V90" stroke="#9EA39B" stroke-width="1"></path>
+<rect fill="none" height="45" stroke="#6E706C" stroke-width="2.5" width="145" x="24" y="65"></rect>
+<g transform="translate(52, 46)">
+<path d="M4 10 C4 5, 12 5, 12 10 L16 16 V52 H0 V16 Z" fill="#CF8D55" stroke="#4A453E" stroke-width="1.2"></path>
+<path d="M24 10 C24 5, 32 5, 32 10 L36 16 V52 H20 V16 Z" fill="#CF8D55" stroke="#4A453E" stroke-width="1.2"></path>
+<path d="M44 10 C44 5, 52 5, 52 10 L56 16 V52 H40 V16 Z" fill="#E7C469" stroke="#4A453E" stroke-width="1.2"></path>
+<path d="M64 10 C64 5, 72 5, 72 10 L76 16 V52 H60 V16 Z" fill="#E7C469" stroke="#4A453E" stroke-width="1.2"></path>
+<path d="M84 10 C84 5, 92 5, 92 10 L96 16 V52 H80 V16 Z" fill="#E7C469" stroke="#4A453E" stroke-width="1.2"></path>
+<rect fill="#3B3D3B" height="5" rx="2" width="104" x="-4" y="52"></rect>
+<circle cx="6" cy="59" fill="#222222" r="5"></circle>
+<circle cx="90" cy="59" fill="#222222" r="5"></circle>
+</g>
+<path d="M285 134 Q 210 25, 115 58" fill="none" stroke="#C46D53" stroke-dasharray="4 3" stroke-width="2.4"></path>
+<g transform="translate(205, 32)">
+<circle cx="32" cy="12" fill="#C97A53" r="8"></circle>
+<path d="M15 24 L46 22 L52 54 L22 56 Z" fill="#3D403D"></path>
+<path d="M22 55 L50 53 L56 76 L38 78 L32 68 L24 76 Z" fill="#C97352"></path>
+<path d="M28 75 L56 105" stroke="#D9A989" stroke-linecap="round" stroke-width="6"></path>
+<circle cx="80" cy="102" fill="#E3BA78" r="10" stroke="#3D352E" stroke-width="1.8"></circle>
+</g>
+</svg>
+</div>
+<!-- Mini-Setup vor Start: Mauer-Größe (1-5 Spieler) & Position -->
+<div class="bg-black/20 rounded-xl p-2.5 mb-3 border border-white/15 text-xs" onclick="event.stopPropagation()">
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-[10px] font-extrabold uppercase tracking-wider text-sand">Mauer-Setup vor Start</span>
+<span class="text-[10px] font-bold text-white/90" id="homeWallSummaryLabel">4 Spieler • Links</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div>
+<span class="text-[10px] text-white/75 block mb-1">Größe (1–5 Spieler):</span>
+<div class="inline-flex w-full rounded-lg bg-black/25 p-0.5 justify-between">
+<button class="flex-1 py-1 rounded-md font-bold text-white/70 text-[11px]" id="btnHomeWallSize-1" onclick="setWallSize(1)" type="button">1</button>
+<button class="flex-1 py-1 rounded-md font-bold text-white/70 text-[11px]" id="btnHomeWallSize-2" onclick="setWallSize(2)" type="button">2</button>
+<button class="flex-1 py-1 rounded-md font-bold text-white/70 text-[11px]" id="btnHomeWallSize-3" onclick="setWallSize(3)" type="button">3</button>
+<button class="flex-1 py-1 rounded-md font-bold bg-sand text-charcoal shadow-sm text-[11px]" id="btnHomeWallSize-4" onclick="setWallSize(4)" type="button">4</button>
+<button class="flex-1 py-1 rounded-md font-bold text-white/70 text-[11px]" id="btnHomeWallSize-5" onclick="setWallSize(5)" type="button">5</button>
+</div>
+</div>
+<div>
+<span class="text-[10px] text-white/75 block mb-1">Mauer-Position:</span>
+<div class="inline-flex w-full rounded-lg bg-black/25 p-0.5 justify-between">
+<button class="flex-1 py-1 rounded-md font-bold bg-sand text-charcoal shadow-sm text-[11px]" id="btnHomeWallPos-left" onclick="setWallPos('left')" type="button">Links</button>
+<button class="flex-1 py-1 rounded-md font-bold text-white/70 text-[11px]" id="btnHomeWallPos-center" onclick="setWallPos('center')" type="button">Mitte</button>
+<button class="flex-1 py-1 rounded-md font-bold text-white/70 text-[11px]" id="btnHomeWallPos-right" onclick="setWallPos('right')" type="button">Rechts</button>
+</div>
+</div>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl bg-sageDark hover:bg-[#6E8370] text-white font-bold text-base shadow-md border border-white/40 transition flex items-center justify-center gap-2" onclick="event.stopPropagation(); chooseModeAndGoToTechniques('Freistöße')">
+<span>Starten</span>
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+</button>
+</div>
+</div>
+</div>
+<!-- 3. TIME ATTACK -->
+<div class="terracotta-card p-4 text-white cursor-pointer preview-mode-card" onclick="toggleHomeModeCard('Time Attack')">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="w-2.5 h-8 rounded-full bg-sand"></span>
+<span class="athletic-title text-3xl sm:text-4xl font-bold tracking-wider">TIME ATTACK</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center transition-transform duration-300" id="modeChevron-Time Attack">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg>
+</div>
+</div>
+<div class="accordion-body" id="modeBody-Time Attack"><div class="text-[10px] font-extrabold uppercase tracking-wider text-sandLight mb-2">In Entwicklung / Vorschau</div>
+<div class="pt-2.5 border-t border-white/25">
+<p class="text-sm font-medium text-white/95 mb-3">
+                  Schüsse unter Zeitdruck – 3 Sek. Start-Countdown + aktives Schuss-Zeitfenster.
+                </p>
+<!-- Vector Illustration recreating 03_time_attack.png -->
+<div class="w-full h-36 rounded-xl overflow-hidden bg-[#E5C287] border border-white/30 shadow-inner mb-3.5">
+<svg class="w-full h-full object-cover" viewbox="0 0 360 160" xmlns="http://www.w3.org/2000/svg">
+<rect fill="#E8C78E" height="160" width="360"></rect>
+<path d="M0 105 Q 90 70, 180 95 T 360 75 V160 H0 Z" fill="#D9AF6B"></path>
+<path d="M0 160 L85 110 L145 160 Z" fill="#9BB09A"></path>
+<path d="M270 160 Q 310 115, 360 110 V160 Z" fill="#9BB09A"></path>
+<rect fill="none" height="44" stroke="#5A625A" stroke-width="3" width="95" x="150" y="45"></rect>
+<polygon fill="#C16944" points="132,102 137,86 142,102" stroke="#3D352E" stroke-width="1.2"></polygon>
+<polygon fill="#C16944" points="182,115 188,96 194,115" stroke="#3D352E" stroke-width="1.2"></polygon>
+<polygon fill="#C16944" points="145,142 152,120 159,142" stroke="#3D352E" stroke-width="1.2"></polygon>
+<g transform="translate(55, 22)">
+<circle cx="58" cy="14" fill="#E09A5C" r="8"></circle>
+<path d="M35 24 L62 24 L56 58 L32 56 Z" fill="#3B4244"></path>
+<path d="M32 56 L56 58 L62 80 L26 78 Z" fill="#C16944"></path>
+<circle cx="62" cy="108" fill="#E3BA78" r="10" stroke="#3D352E" stroke-width="1.8"></circle>
+</g>
+<g transform="translate(285, 58)">
+<rect fill="#8D9E8B" height="10" rx="2" stroke="#3D352E" stroke-width="1.8" width="12" x="-6" y="-42"></rect>
+<circle cx="0" cy="-44" fill="none" r="8" stroke="#3D352E" stroke-width="2"></circle>
+<circle cx="0" cy="0" fill="#9BB09A" r="36" stroke="#3D352E" stroke-width="2.2"></circle>
+<circle cx="0" cy="0" fill="#F6F1E6" r="29" stroke="#3D352E" stroke-width="1.5"></circle>
+<path d="M0 0 L16 -16" stroke="#3D352E" stroke-linecap="round" stroke-width="2.8"></path>
+<circle cx="0" cy="0" fill="#3D352E" r="3"></circle>
+</g>
+</svg>
+</div>
+<button class="w-full py-3 rounded-xl bg-sageDark hover:bg-[#71856F] text-white font-bold text-base shadow-md border border-white/40 transition flex items-center justify-center gap-2" onclick="event.stopPropagation(); chooseModeAndGoToTechniques('Time Attack')">
+<span>Starten</span>
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ================================================================= -->
+<!-- SCREEN 3: SCHUSSTECHNIK SCREEN                                    -->
+<!-- ================================================================= -->
+<section class="screen-view flex-col flex-1 px-5 pt-4 pb-6" id="screen-technique">
+<!-- Selected Mode Banner -->
+<div class="apple-card px-4 py-3 mb-3 flex items-center justify-between border-l-4 border-l-terracotta">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta">Gewählter Modus</span>
+<span class="text-xs font-extrabold text-charcoal" id="techModeBadge">• Freistöße</span>
+</div>
+<p class="text-xs text-neutral-600 mt-0.5" id="techModeExplanation">
+              Ruhende Bälle über die gegnerische Mauer
+            </p>
+</div>
+
+</div>
+<!-- Title Pill -->
+
+<div class="apple-card p-3 mb-3 space-y-2.5">
+<div class="flex items-center justify-between gap-3">
+<span class="text-[10px] font-extrabold uppercase tracking-wider text-neutral-500">Distanz</span>
+<div class="inline-flex rounded-xl bg-neutral-200/80 p-0.5 text-[11px] font-extrabold">
+<button class="px-3 py-1.5 rounded-lg bg-white text-charcoal shadow-sm" id="btnDistance16" onclick="setDistance(16)">16m</button>
+<button class="px-3 py-1.5 rounded-lg text-neutral-400 opacity-40 cursor-not-allowed" disabled="" type="button">20m</button>
+<button class="px-3 py-1.5 rounded-lg text-neutral-400 opacity-40 cursor-not-allowed" disabled="" type="button">25m</button>
+</div>
+</div>
+<div class="flex items-center justify-between gap-3">
+<span class="text-[10px] font-extrabold uppercase tracking-wider text-neutral-500">Position</span>
+<div class="inline-flex rounded-xl bg-neutral-200/80 p-0.5 text-[11px] font-extrabold">
+<button class="px-3 py-1.5 rounded-lg text-neutral-400 opacity-40 cursor-not-allowed" disabled="" type="button">Links</button>
+<button class="px-3 py-1.5 rounded-lg bg-white text-charcoal shadow-sm" id="btnPositionCenter" onclick="setPitchPosition('Zentral')">Zentral</button>
+<button class="px-3 py-1.5 rounded-lg text-neutral-400 opacity-40 cursor-not-allowed" disabled="" type="button">Rechts</button>
+</div>
+</div>
+</div>
+<div class="flex justify-center mb-3.5">
+<div class="glass-pill px-6 py-2.5 rounded-2xl text-center shadow-sm">
+<h2 class="text-xl font-extrabold text-charcoal tracking-tight">Wähle Deine Schusstechnik</h2>
+</div>
+</div>
+<!-- 4 Expandable Technique Cards -->
+<div class="flex flex-col gap-3 my-auto" id="techniqueCardsList">
+<!-- Populated dynamically via renderTechniqueCards() -->
+</div>
+</section>
+<!-- ================================================================= -->
+<!-- SCREEN 4: TRAININGSSCREEN (LIVE-DASHBOARD V3.0)                   -->
+<!-- ================================================================= -->
+<section class="screen-view flex-col flex-1 px-4 pt-3 pb-6 gap-3.5" id="screen-training">
+<div class="hidden apple-card p-3.5 border-2 border-amber-500/50 bg-gradient-to-br from-amber-50/95 to-white/95" id="timeAttackBox">
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-extrabold uppercase tracking-wider text-charcoal">Time-Attack Zeitsystem · Vorschau</span>
+<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">Serie <strong id="taStreakCountText">0 / 5</strong></span>
+</div>
+<div class="flex items-center justify-between gap-3 bg-charcoal text-white rounded-xl p-3">
+<div><div class="text-[10px] font-bold uppercase tracking-wider text-sand" id="taStatusLabel">Bereit für Durchgang</div><div class="text-lg font-extrabold font-mono mt-0.5" id="taTimerLabel">3s Vorlauf + 4,0s Schuss</div></div>
+<div class="flex items-center gap-2"><select class="bg-white text-charcoal border rounded-lg px-2 py-1 text-[11px] font-bold" id="taWindowSelect" onchange="setTimeAttackWindow(this.value)"><option value="3.5">3,5 Sek.</option><option selected="" value="4">4,0 Sek.</option><option value="5">5,0 Sek.</option><option value="8">8,0 Sek.</option></select><button class="px-3 py-2 rounded-xl bg-terracotta text-white font-bold text-xs" id="btnStartTaRound" onclick="startTimeAttackRound()">Countdown starten</button></div>
+</div>
+<div class="w-full h-2 bg-neutral-200 rounded-full overflow-hidden mt-2"><div class="h-full bg-amber-500" id="taProgressFill" style="width:100%"></div></div>
+</div>
+<!-- KI-Coach bewusst als erste Trainingskachel -->
+<div class="apple-card p-4 border-t-4 border-t-sageDark">
+<div class="flex items-center justify-between mb-2.5">
+<div class="flex items-center gap-2"><div class="w-8 h-8 rounded-xl bg-sage/30 border border-sageDark/40 flex items-center justify-center text-charcoal font-extrabold text-sm">KI</div><div><span class="text-[10px] font-extrabold uppercase tracking-wider text-sageDark block">Messwert-Coaching</span><h3 class="text-sm font-extrabold text-charcoal">KI-Coach</h3></div></div>
+<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600" id="coachModeBadge">Wartet auf Schuss</span>
+</div>
+<div class="min-h-[92px] max-h-52 overflow-y-auto no-scrollbar space-y-2.5 bg-neutral-100/90 rounded-2xl p-3 border border-neutral-200/80 mb-2.5 text-xs" id="aiCoachChatList">
+<p class="text-neutral-500">Sobald ein echter Sensorschuss eintrifft, erhältst du hier eine individuelle Analyse.</p>
+</div>
+<div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-2">
+<button class="px-2.5 py-1 rounded-full bg-white border border-neutral-300 text-[11px] font-semibold text-charcoal shrink-0" onclick="askAiCoach('Wie verbessere ich meine Knöchel-Stabilität?')">Knöchel-Stabilität</button>
+<button class="px-2.5 py-1 rounded-full bg-white border border-neutral-300 text-[11px] font-semibold text-charcoal shrink-0" onclick="askAiCoach('Wie optimiere ich meine Kraftübertragung?')">Kraftübertragung</button>
+<button class="px-2.5 py-1 rounded-full bg-white border border-neutral-300 text-[11px] font-semibold text-charcoal shrink-0" onclick="askAiCoach('Wie verbessere ich Treffpunkt und Fußhaltung?')">Treffpunkt &amp; Fußhaltung</button>
+</div>
+<form class="flex gap-2 mt-1" onsubmit="handleAiCoachSubmit(event)"><input class="flex-1 bg-white border border-neutral-300 rounded-xl px-3 py-2 text-xs text-charcoal focus:outline-none focus:border-terracotta" id="aiCoachInput" placeholder="Stelle eine Rückfrage zur Session …" type="text"/><button class="px-3.5 py-2 rounded-xl bg-charcoal text-sand font-bold text-xs shrink-0" type="submit">Senden</button></form>
+</div>
+<!-- Trefferbild / Torübersicht direkt unter dem Coach -->
+<div class="apple-card p-4 border-2 border-terracotta/30">
+<div class="flex items-center justify-between mb-2"><div><span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta block" id="goalCardSubtitle">Präzision / Tor-Übersicht</span><h3 class="text-sm font-extrabold text-charcoal" id="goalCardMainTitle">Trefferbild</h3></div><span class="px-2.5 py-1 rounded-full bg-terracotta/15 text-terracotta text-[11px] font-extrabold" id="calibCountBadge">Kalibrierung 0/5</span></div>
+<div class="relative w-full bg-[#E6ECE4] rounded-2xl p-2 border border-neutral-300 shadow-inner">
+<svg aria-label="Torübersicht mit prognostiziertem Einschlag" class="w-full h-auto" id="goalPreviewSvg" viewbox="0 0 400 185">
+<rect fill="#EDF2EB" height="152" width="400" x="0" y="0"></rect><rect fill="#B5C7B0" height="33" width="400" x="0" y="152"></rect><path d="M62 44 L76 55 V152 H62 Z M338 44 L324 55 V152 H338 Z M76 55 H324" fill="rgba(255,255,255,.4)" stroke="#7B827A" stroke-width="1.5"></path><g stroke="#8E968D" stroke-opacity=".55" stroke-width=".7"><path d="M90 44V152 M118 44V152 M145 44V152 M172 44V152 M200 44V152 M228 44V152 M255 44V152 M282 44V152 M310 44V152 M62 66H338 M62 88H338 M62 110H338 M62 132H338"></path></g><path d="M62 152V44H338V152" fill="none" stroke="#2B2A29" stroke-width="5"></path><g id="goalMarkersLayer"></g><text fill="#57534e" font-size="9" text-anchor="middle" x="200" y="177">Tor-Mitte</text>
+</svg>
+</div>
+<div class="mt-2 flex justify-between text-[10px] text-neutral-600"><span>Prognose: <strong id="goalEstCoordsText">Noch kein Messwert</strong></span><span>Einschlag: <strong id="goalClickedCoordsText">Noch offen</strong></span></div>
+<p class="mt-1 text-[10px] text-neutral-500">Der tatsächliche Einschlag wird nach jedem Schuss im Tor-Pop-up erfasst.</p>
+</div>
+<div class="apple-card p-3.5 flex flex-col gap-2.5">
+<div class="flex items-center justify-between gap-2"><div class="flex items-center gap-2"><span class="text-[11px] font-extrabold uppercase tracking-wider text-terracotta" id="dashboardFootIndicator">Rechter Fuß</span><span class="px-2 py-0.5 rounded-full bg-neutral-200/90 text-[10px] font-extrabold text-charcoal" id="sessionShotsCountBadge">0 Schüsse</span></div><div class="inline-flex w-full max-w-[230px] rounded-xl bg-neutral-200/80 p-0.5 text-[10px] font-bold"><button class="flex-1 px-2 py-1.5 rounded-lg bg-white text-charcoal shadow-sm" id="btnToggleViewLast" onclick="switchMetricDisplayMode('last')">Aktueller Schuss</button><button class="flex-1 px-2 py-1.5 rounded-lg text-neutral-600" id="btnToggleViewAvg" onclick="switchMetricDisplayMode('avg')">Durchschnitt</button></div></div>
+<div class="flex items-center justify-between bg-neutral-100/90 rounded-xl px-3 py-1.5 border border-neutral-200/70"><span class="text-[11px] font-bold text-neutral-600">Ziel-Höhe</span><div class="inline-flex rounded-xl bg-neutral-200/80 p-0.5 text-xs font-bold"><button class="px-3 py-1 rounded-lg text-neutral-600" id="btnHeight-low" onclick="selectHeightLevel('low')">Flach</button><button class="px-3 py-1 rounded-lg text-neutral-600" id="btnHeight-mid" onclick="selectHeightLevel('mid')">Halbhoch</button><button class="px-3 py-1 rounded-lg bg-white text-charcoal shadow-sm" id="btnHeight-high" onclick="selectHeightLevel('high')">Hoch</button></div></div>
+<div class="rounded-xl bg-neutral-100 px-3 py-2 text-[11px] text-neutral-600 flex items-center justify-between"><span>Schusserfassung</span><strong class="text-charcoal">Automatisch per BLE-Sensor</strong></div>
+<div class="hidden rounded-xl bg-amber-50 border border-amber-200 p-3 space-y-2" id="validationSessionTools"><div class="flex items-center justify-between"><strong class="text-xs text-charcoal">Validierungsmodus</strong><span class="text-[10px] font-bold text-terracotta" id="validationSeriesCounter">Serie 1 · 0/15</span></div><button class="w-full py-2 rounded-lg bg-sageDark text-white font-extrabold text-xs" onclick="downloadValidationCsv()">Validierungs-CSV herunterladen</button><button class="w-full py-2 rounded-lg bg-white border border-rose-300 text-rose-700 font-bold text-xs" onclick="clearValidationData()">Validierungsdaten löschen</button></div>
+</div>
+<div class="apple-card p-4 flex flex-col items-center"><div class="w-full flex items-center justify-between mb-1"><div><span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta block" id="radarModeSublabel">Noch keine Messung</span><h3 class="text-sm font-extrabold text-charcoal">Gesamt-Performance</h3></div><span class="px-2.5 py-1 rounded-full text-xs font-extrabold text-white bg-neutral-400" id="radarOverallPill">–</span></div><div class="relative w-full max-w-[305px] aspect-square flex items-center justify-center my-1"><svg class="w-full h-full overflow-visible" id="trainingRadarSvg" viewbox="0 0 340 340"></svg></div><div class="w-full pt-2 border-t border-neutral-200/70 flex items-center justify-between text-[9px] font-bold text-neutral-500"><span>Schwach</span><span>Solide</span><span>Gut</span><span>Sehr gut</span><span>Exzellent</span></div></div>
+<div class="apple-card p-4"><div class="flex items-center justify-between mb-2.5"><div><span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta block" id="shoeFootLabel">Schuh-Draufsicht</span><h3 class="text-sm font-extrabold text-charcoal">Dynamische Fuß-Heatmap</h3></div><span class="px-2.5 py-1 rounded-xl text-xs font-extrabold text-white bg-neutral-400" id="shoeMatchBadge">–</span></div><div class="grid grid-cols-12 gap-3 items-center"><div class="col-span-5 flex flex-col items-center justify-center bg-neutral-900 rounded-2xl p-2 border border-neutral-800 shadow-inner"><svg class="w-24 h-40 overflow-visible" id="trainingShoeSvg" viewbox="0 0 150 250"></svg></div><div class="col-span-7 flex flex-col gap-2 text-xs"><div class="p-2.5 rounded-xl bg-neutral-100/90 border border-neutral-200/70"><span class="text-[10px] font-bold uppercase text-neutral-400 block">Treffpunkt horizontal</span><div class="flex items-baseline justify-between mt-0.5"><strong class="text-sm font-extrabold text-charcoal" id="valPsiN">–</strong><span class="text-[11px] font-bold text-neutral-500" id="labelPsiZone">Noch offen</span></div></div><div class="p-2.5 rounded-xl bg-neutral-100/90 border border-neutral-200/70"><span class="text-[10px] font-bold uppercase text-neutral-400 block">Fußneigung</span><strong class="text-sm font-extrabold text-charcoal block mt-0.5" id="valThetaPitch">–</strong><span class="text-[10px] font-semibold text-neutral-500" id="targetThetaPitch">Noch offen</span></div><div class="p-2.5 rounded-xl bg-neutral-100/90 border border-neutral-200/70"><span class="text-[10px] font-bold uppercase text-neutral-400 block">Fußkippung</span><strong class="text-sm font-extrabold text-charcoal block mt-0.5" id="valPhiRoll">–</strong><span class="text-[10px] font-semibold text-neutral-500" id="targetPhiRoll">Noch offen</span></div></div></div><div class="flex flex-wrap gap-2 mt-3 text-[9px] text-neutral-600"><span>🟩 selten</span><span>🟢 häufiger</span><span>🟡 gebündelt</span><span>🟠 oft</span><span>🔴 Hotspot</span><span class="ml-auto">Zehen ↑</span></div></div>
+<div class="apple-card p-4"><div class="mb-3"><span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta block">Biomechanik-Auswertung</span><h3 class="text-sm font-extrabold text-charcoal">Deine Kern-Werte</h3></div><div class="grid grid-cols-2 gap-2.5">
+<div class="p-3 rounded-2xl bg-neutral-100/90 border border-neutral-200/70"><span class="text-[10px] font-extrabold uppercase text-neutral-500">Kraftübertragung</span><strong class="text-lg font-extrabold text-charcoal block mt-1" id="valQOmega">–</strong><p class="text-[10px] text-neutral-500 mt-0.5" id="subQOmega">–</p></div>
+<div class="p-3 rounded-2xl bg-neutral-100/90 border border-neutral-200/70"><span class="text-[10px] font-extrabold uppercase text-neutral-500">Knöchel-Stabilität</span><strong class="text-lg font-extrabold text-charcoal block mt-1" id="valDTheta">–</strong><span class="text-[11px] font-extrabold text-neutral-500" id="unitDTheta">–</span><p class="text-[10px] text-neutral-500 mt-0.5" id="subDTheta">–</p></div>
+<div class="p-3 rounded-2xl bg-neutral-100/90 border border-neutral-200/70"><span class="text-[10px] font-extrabold uppercase text-neutral-500">Schwung-Dynamik</span><strong class="text-base font-extrabold text-charcoal block mt-1" id="valAlphaRel">–</strong><p class="text-[10px] text-neutral-500 mt-0.5" id="subAlphaRel">–</p></div>
+<div class="p-3 rounded-2xl bg-neutral-100/90 border border-neutral-200/70"><span class="text-[10px] font-extrabold uppercase text-neutral-500">Durchschwung</span><strong class="text-base font-extrabold text-charcoal block mt-1" id="valThetaFT">–</strong><p class="text-[10px] text-neutral-500 mt-0.5" id="subTauHalf">–</p></div>
+<div class="p-3 rounded-2xl bg-neutral-100/90 border border-neutral-200/70"><span class="text-[10px] font-extrabold uppercase text-neutral-500">Treffpunkt vertikal</span><strong class="text-base font-extrabold text-charcoal block mt-1" id="valCoreTreffer">–</strong><p class="text-[10px] text-neutral-500 mt-0.5" id="subCoreTreffer">–</p></div>
+<div class="p-3 rounded-2xl bg-neutral-100/90 border border-neutral-200/70"><span class="text-[10px] font-extrabold uppercase text-neutral-500">Kontaktzeit / Ball-Kompression</span><strong class="text-base font-extrabold text-charcoal block mt-1" id="valTauHalf">–</strong><p class="text-[10px] text-neutral-500 mt-0.5" id="subCoreHaltung">–</p></div>
+</div><div class="grid grid-cols-3 gap-2 mt-2.5"><div class="p-2.5 rounded-xl bg-neutral-100"><span class="text-[9px] text-neutral-500 block">Aufprall-Wucht</span><strong class="text-sm font-extrabold text-charcoal" id="metricImpactForce">–</strong></div><div class="p-2.5 rounded-xl bg-neutral-100"><span class="text-[9px] text-neutral-500 block">Effektive Masse</span><strong class="text-sm font-extrabold text-charcoal" id="metricEffectiveMass">–</strong></div><div class="p-2.5 rounded-xl bg-neutral-100"><span class="text-[9px] text-neutral-500 block">Kontaktsteifigkeit</span><strong class="text-sm font-extrabold text-charcoal" id="metricKInd">–</strong></div></div></div>
+<div class="apple-card p-4 bg-gradient-to-br from-charcoal to-[#383735] text-white"><div class="flex items-center justify-between mb-3"><div><span class="text-[10px] font-extrabold uppercase tracking-wider text-sand block">Ballflug-Kennwerte</span><h3 class="text-sm font-extrabold text-white">Schusshärte und Effet / Spin-Anteil</h3></div><span class="hidden px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400 text-amber-300 text-[10px] font-extrabold" id="knuckleEffectBadge">Flatter-Effekt</span></div><div class="grid grid-cols-2 gap-3"><div class="p-3.5 rounded-2xl bg-white/10 border border-white/15"><span class="text-[10px] font-bold uppercase text-sand/90 block">Ballgeschwindigkeit</span><div class="flex items-baseline gap-1.5 mt-1"><span class="text-2xl font-extrabold font-mono text-white" id="valVBallKmh">–</span><span class="text-xs font-bold text-sand">km/h</span></div><span class="text-[11px] text-neutral-300 font-mono block mt-0.5" id="valVBallMps">–</span></div><div class="p-3.5 rounded-2xl bg-white/10 border border-white/15"><span class="text-[10px] font-bold uppercase text-sand/90 block">Spin-Anteil</span><div class="flex items-baseline gap-1.5 mt-1"><span class="text-2xl font-extrabold font-mono text-white" id="valETanPct">–</span><span class="text-xs font-bold text-sand">Intensität</span></div><span class="text-[11px] text-neutral-300 block mt-0.5" id="subETanDesc">–</span></div></div><div class="grid grid-cols-2 gap-2 mt-2"><div class="rounded-xl bg-white/10 p-2"><span class="text-[9px] text-sand">Rotations-Erhalt</span><strong class="block text-sm" id="metricQOmegaSecondary">–</strong></div><div class="rounded-xl bg-white/10 p-2"><span class="text-[9px] text-sand">Ball-Kompression</span><strong class="block text-sm" id="metricCompression">–</strong></div></div></div>
+<div class="apple-card p-3 flex items-center justify-between text-[11px]"><span class="font-bold text-neutral-600">Trainingsdauer</span><strong class="font-mono text-charcoal" id="trainingElapsedInline">00:00</strong></div>
+</section>
+<!-- ================================================================= -->
+<!-- SCREEN 5: SPEICHERSCREEN ("Trainingsbericht")                     -->
+<!-- ================================================================= -->
+<section class="screen-view flex-col flex-1 px-4 pt-4 pb-6 gap-3.5" id="screen-report">
+<!-- Header Summary Card -->
+<div class="apple-card p-4 border-l-4 border-l-terracotta">
+<div class="flex items-center justify-between">
+<div>
+<span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta">Absolviertes Training</span>
+<h2 class="text-lg font-extrabold text-charcoal mt-0.5" id="repModeTechHeading">Freistöße • Vollspann</h2>
+</div>
+<div class="px-3 py-1.5 rounded-2xl text-sm font-extrabold text-white shadow-sm" id="repScoreBadge" style="background-color: #10B981;">
+              84% (Gut)
+            </div>
+</div>
+<div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-neutral-200/80 text-center">
+<div>
+<span class="text-[10px] font-bold uppercase text-neutral-400 block">Dauer</span>
+<span class="text-sm font-extrabold text-charcoal" id="repDurationText">04:12 Min</span>
+</div>
+<div>
+<span class="text-[10px] font-bold uppercase text-neutral-400 block">Schüsse</span>
+<span class="text-sm font-extrabold text-charcoal" id="repShotCountText">5 Schüsse</span>
+</div>
+<div>
+<span class="text-[10px] font-bold uppercase text-neutral-400 block">Ø Schusshärte</span>
+<span class="text-sm font-extrabold text-charcoal" id="repAvgSpeedText">128.4 km/h</span>
+</div>
+</div>
+</div>
+<!-- Radar + Shoe Heatmap Snapshot -->
+<div class="apple-card p-4">
+<h3 class="text-xs font-extrabold uppercase tracking-wider text-neutral-500 mb-2">Gesamt Performance &amp; Trefferfläche</h3>
+<div class="grid grid-cols-12 gap-2 items-center">
+<div class="col-span-7 flex justify-center">
+<svg class="w-44 h-44 overflow-visible" id="reportRadarSvg" viewbox="0 0 340 340"></svg>
+</div>
+<div class="col-span-5 flex flex-col items-center bg-neutral-900 rounded-2xl p-2 border border-neutral-800">
+<svg class="w-20 h-32 overflow-visible" id="reportShoeSvg" viewbox="0 0 150 250"></svg>
+<span class="text-[10px] font-extrabold text-white mt-1" id="repShoeMatchText">Trefferfläche: 86%</span>
+</div>
+</div>
+</div>
+<!-- Coaching Report Summary -->
+<div class="apple-card p-4">
+<h3 class="text-xs font-extrabold uppercase tracking-wider text-terracotta mb-1.5">Zusammenfassung / KI-Coach Fazit</h3>
+<p class="text-xs text-neutral-700 leading-relaxed" id="repCoachingParagraph"></p>
+</div>
+<!-- Comparison to Last Session of Same Training -->
+<div class="apple-card p-4">
+<h3 class="text-xs font-extrabold uppercase tracking-wider text-neutral-500 mb-2.5">
+            Vergleich zur letzten Einheit des gleichen Trainings
+          </h3>
+<div class="grid grid-cols-3 gap-2 text-center">
+<div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
+<span class="text-[10px] font-bold text-neutral-500 block">Performance</span>
+<span class="text-sm font-extrabold text-emerald-600" id="repDeltaScore">+4% ↑</span>
+</div>
+<div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
+<span class="text-[10px] font-bold text-neutral-500 block">Gelenkstabilität</span>
+<span class="text-sm font-extrabold text-emerald-600" id="repDeltaStab">Stabiler ↑</span>
+</div>
+<div class="p-2.5 rounded-xl bg-blue-50 border border-blue-200">
+<span class="text-[10px] font-bold text-neutral-500 block">Kraftübertragung</span>
+<span class="text-sm font-extrabold text-blue-600" id="repDeltaQOmega">+3% ↑</span>
+</div>
+</div>
+</div>
+</section>
+<!-- ================================================================= -->
+<!-- SCREEN 6: HISTORIESCREEN (WITH FIXED FILTER & RESET)              -->
+<!-- ================================================================= -->
+<section class="screen-view flex-col flex-1 px-5 pt-4 pb-6" id="screen-history">
+<!-- Interactive Filter Box -->
+<div class="apple-card p-4 mb-4 border-2 border-terracotta/50 shadow-lg" id="historyFilterDrawer">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4" fill="none" viewbox="0 0 36 36"><path d="M4 7 H32 L21 20 V30 L15 26 V20 L4 7 Z" fill="rgba(194,118,85,0.2)" stroke="#C27655" stroke-width="3"></path></svg>
+<span class="text-xs font-extrabold uppercase tracking-wider text-terracotta">Filter</span>
+</div>
+<button class="px-2.5 py-1 rounded-lg bg-terracotta/15 text-[11px] font-extrabold text-terracotta hover:bg-terracotta/25 transition" onclick="resetAllHistoryFilters()" type="button">
+              Alle zurücksetzen
+            </button>
+</div>
+<div class="space-y-2.5 text-xs">
+<div class="flex items-center justify-between">
+<label class="font-bold text-charcoal" for="histFilterMode">Modus:</label>
+<select class="w-48 bg-white border border-neutral-300 rounded-xl px-2.5 py-1.5 font-bold text-charcoal focus:outline-none focus:border-terracotta" id="histFilterMode" onchange="applyHistoryFilters()">
+<option value="all">Alle Modi</option>
+<option value="Basics">Basics</option>
+<option value="Freistöße">Freistöße</option>
+<option value="Time Attack">Time Attack</option>
+</select>
+</div>
+<div class="flex items-center justify-between">
+<label class="font-bold text-charcoal" for="histFilterTech">Technik:</label>
+<select class="w-48 bg-white border border-neutral-300 rounded-xl px-2.5 py-1.5 font-bold text-charcoal focus:outline-none focus:border-terracotta" id="histFilterTech" onchange="applyHistoryFilters()">
+<option value="all">Alle Techniken</option>
+<option value="Vollspann">Vollspann</option>
+<option value="Innenseite-Effet">Innenseite-Effet</option>
+<option value="Außenrist">Außenrist</option>
+<option value="Top-Spin">Top-Spin</option>
+</select>
+</div>
+<div class="flex items-center justify-between">
+<label class="font-bold text-charcoal" for="histFilterPeriod">Zeitraum:</label>
+<select class="w-48 bg-white border border-neutral-300 rounded-xl px-2.5 py-1.5 font-bold text-charcoal focus:outline-none focus:border-terracotta" id="histFilterPeriod" onchange="applyHistoryFilters()">
+<option value="all">Alle Zeiträume</option>
+<option value="week">Letzte Woche</option>
+<option value="month">Letzter Monat</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Status Bar above History Cards -->
+<div class="flex items-center justify-between mb-3 px-1">
+<span class="text-xs font-extrabold text-charcoal" id="historyResultCountText">6 gespeicherte Einheiten</span>
+<span class="text-[11px] font-medium text-neutral-500">Kachel antippen für Analyse</span>
+</div>
+<!-- Terracotta History Cards Container -->
+<div class="flex flex-col gap-3 mb-4" id="historyCardsList">
+<!-- Dynamically populated by applyHistoryFilters() -->
+</div>
+</section>
+</main>
+<!-- =================================================================== -->
+<!-- BOTTOM DARK CHARCOAL NAVIGATION BAR (Screens 3, 4, 5, 6)            -->
+<!-- =================================================================== -->
+<footer class="hidden relative z-30 bg-charcoal px-6 py-3.5 items-center justify-center shrink-0 min-h-[84px] border-t border-white/10 shadow-2xl" id="appBottomBar">
+<!-- Slot 1: Home Button (Screens 3 & 6) -->
+<div class="hidden flex-col items-center" id="bottomSlotHome">
+<button class="w-16 h-16 rounded-full flex items-center justify-center transition transform active:scale-90" onclick="navigateTo('screen-home')" title="Zurück zum Hauptmenü">
+<svg class="w-full h-full drop-shadow" fill="none" viewbox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<circle cx="50" cy="50" r="46" stroke="#E3BA78" stroke-width="4"></circle>
+<circle cx="50" cy="50" r="39" stroke="#E3BA78" stroke-width="3"></circle>
+<path d="M26 51 L50 28 L74 51" stroke="#E3BA78" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"></path>
+<path d="M34 47 V71 C34 72.5, 35 73.5, 36.5 73.5 H45 V58 H55 V73.5 H63.5 C65 73.5, 66 72.5, 66 71 V47" stroke="#E3BA78" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.5"></path>
+</svg>
+</button>
+</div>
+<!-- Slot 2: 2-Second Hold Stop Button (Screen 4) -->
+<div class="hidden flex-col items-center w-full" id="bottomSlotStop">
+<button class="relative w-16 h-16 rounded-full flex items-center justify-center transition transform active:scale-95 select-none" id="btnHoldStop" onmousedown="beginStopHold(event)" onmouseleave="abortStopHold(event)" onmouseup="abortStopHold(event)" ontouchcancel="abortStopHold(event)" ontouchend="abortStopHold(event)" ontouchstart="beginStopHold(event)">
+<svg class="w-full h-full -rotate-90" fill="none" viewbox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<circle cx="50" cy="50" r="43" stroke="#E3BA78" stroke-opacity="0.35" stroke-width="7"></circle>
+<circle cx="50" cy="50" id="holdStopRing" r="43" stroke="#E3BA78" stroke-dasharray="270.17" stroke-dashoffset="270.17" stroke-linecap="round" stroke-width="7"></circle>
+<rect fill="#E3BA78" height="34" rx="6" transform="rotate(90 50 50)" width="34" x="33" y="33"></rect>
+</svg>
+</button>
+<span class="text-[10px] font-semibold text-sand/90 mt-1 tracking-wide" id="holdStopCaption">
+          2 Sek. gedrückt halten zum Beenden
+        </span>
+</div>
+<!-- Slot 3: Discard & Save Buttons (Screen 5) -->
+<div class="hidden w-full items-center justify-between px-2 gap-4" id="bottomSlotSaveDiscard">
+<button class="flex-1 py-3 px-4 rounded-full border-2 border-rose-500 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-sm tracking-wide transition active:scale-95 flex items-center justify-center gap-2" onclick="openDiscardConfirmModal()">
+<span>Discard</span>
+</button>
+<button class="flex-1 py-3 px-4 rounded-full border-2 border-emerald-500 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-sm tracking-wide transition active:scale-95 flex items-center justify-center gap-2 shadow-lg" onclick="commitSaveSession()">
+<span>Save</span>
+</button>
+</div>
+</footer>
+<!-- =================================================================== -->
+<!-- MODAL 1: LEXIKON / VOKABELLISTE (MATHEMATIK-DATENBLATT)             -->
+<!-- =================================================================== -->
+<div class="hidden absolute inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4" id="modalLexicon">
+<div class="w-full max-w-[385px] max-h-[85%] bg-white rounded-3xl p-5 shadow-2xl border border-neutral-200 flex flex-col">
+<div class="flex items-center justify-between mb-2">
+<span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta">Wissenschaftliches Datenblatt</span>
+<button class="text-neutral-400 hover:text-charcoal font-bold" onclick="closeLexiconModal()">✕</button>
+</div>
+<h3 class="text-lg font-extrabold text-charcoal mb-1">Lexikon: Begriffe &amp; Sensor-Mathematik</h3>
+<p class="text-xs text-neutral-500 mb-3">
+          Im gesamten App-Alltag nutzt KickCoach verständliche Coaching-Begriffe. Hier siehst du die zugrundeliegenden physikalischen Größen:
+        </p>
+<div class="overflow-y-auto no-scrollbar space-y-2 text-xs pr-1">
+<div class="p-2.5 rounded-xl bg-cream border border-neutral-200">
+<strong class="text-charcoal block">1. Trefferfläche (Horizontalwinkel ψ_n)</strong>
+<span class="text-neutral-600">Gibt an, wo der Ball den Fuß in der Sohlenebene trifft (Innenrist, Vollspann/Mittig oder Außenrist). Bei linkem Fuß wird das Vorzeichen automatisch mit -1 gespiegelt.</span>
+</div>
+<div class="p-2.5 rounded-xl bg-cream border border-neutral-200">
+<strong class="text-charcoal block">2. Gelenkstabilität (Normierter Wegknickwinkel Δθ_normiert)</strong>
+<span class="text-neutral-600">Misst in Grad pro (m/s), wie stark das Sprunggelenk beim Ballkontakt nachgibt. Je kleiner der Wert, desto stabiler und verriegelter war dein Fußgelenk.</span>
+</div>
+<div class="p-2.5 rounded-xl bg-cream border border-neutral-200">
+<strong class="text-charcoal block">3. Kraftübertragung (Drehratenerhaltungsquote Q_ω &amp; Schlagmasse M_eff)</strong>
+<span class="text-neutral-600">Verhältnis der Bein-Drehrate nach und vor dem Stoß. Ein hoher Wert (&gt; 80%) zeigt eine hocheffiziente Impulsübertragung auf den Ball.</span>
+</div>
+<div class="p-2.5 rounded-xl bg-cream border border-neutral-200">
+<strong class="text-charcoal block">4. Fußhaltung (Anstellwinkel θ_Pitch &amp; Kippwinkel φ_Roll)</strong>
+<span class="text-neutral-600">Neigung des Schuhs nach oben/unten (Pitch) sowie seitliche Drehung (Roll, bei linkem Fuß mit -1 gespiegelt).</span>
+</div>
+<div class="p-2.5 rounded-xl bg-cream border border-neutral-200">
+<strong class="text-charcoal block">5. Schwung-Dynamik (Schwungkontinuität α_rel)</strong>
+<span class="text-neutral-600">Prüft, ob das Bein bis zum Treffmoment weiter beschleunigt wurde (&gt; 0 s⁻¹) oder schon vor dem Ball abgebremst hat.</span>
+</div>
+<div class="p-2.5 rounded-xl bg-cream border border-neutral-200">
+<strong class="text-charcoal block">6. Abbremsen (Bremshalbwertszeit τ_1/2 &amp; Durchschwungwinkel Θ_FT)</strong>
+<span class="text-neutral-600">Zeitspanne nach dem Stoß bis zur halben Winkelgeschwindigkeit. Beim Top-Spin ist ein kurzes, peitschenartiges Abbremsen optimal.</span>
+</div>
+<div class="p-2.5 rounded-xl bg-cream border border-neutral-200">
+<strong class="text-charcoal block">7. Schusshärte (Ballabfluggeschwindigkeit v_Ball &amp; Kontaktzeit T_Stoß)</strong>
+<span class="text-neutral-600">Resultierende Abfluggeschwindigkeit in km/h sowie die Stoßdauer in Millisekunden (8–12 ms).</span>
+</div>
+<div class="p-2.5 rounded-xl bg-cream border border-neutral-200">
+<strong class="text-charcoal block">8. Effet (Scherverhältnis E_tan = v_tan / |v_treff|)</strong>
+<span class="text-neutral-600">Prozentualer Anteil der Fußgeschwindigkeit, der tangential in die Ballrotation fließt.</span>
+</div>
+</div>
+<button class="w-full mt-4 py-2.5 rounded-xl bg-terracotta text-white font-bold text-xs shrink-0" onclick="closeLexiconModal()">
+          Schließen
+        </button>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- MODAL 2: DISCARD CONFIRMATION ("Training wirklich verwerfen?")      -->
+<!-- =================================================================== -->
+<div class="hidden absolute inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-5" id="modalDiscardConfirm">
+<div class="w-full max-w-[345px] bg-white rounded-3xl p-5 shadow-2xl border border-neutral-200 text-center">
+<div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3 font-extrabold text-xl">!</div>
+<h3 class="text-base font-extrabold text-charcoal">Training wirklich verwerfen?</h3>
+<p class="text-xs text-neutral-600 mt-1.5 leading-relaxed">
+          Alle gemessenen Schüsse dieser Einheit werden gelöscht und nicht in deiner Historie gespeichert.
+        </p>
+<div class="grid grid-cols-2 gap-2.5 mt-5">
+<button class="py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-charcoal font-bold text-xs" onclick="closeDiscardConfirmModal()">
+            Abbrechen
+          </button>
+<button class="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md" onclick="confirmDiscardAndExit()">
+            Ja, verwerfen
+          </button>
+</div>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- MODAL 3: TIME-ATTACK POP-UPS ("Zu langsam!" / "Zu einfach?")        -->
+<!-- =================================================================== -->
+<div class="hidden absolute inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5" id="modalTimeAttackAlert">
+<div class="w-full max-w-[355px] bg-white rounded-3xl p-6 shadow-2xl border-2 border-amber-500 text-center">
+<div class="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3 text-2xl font-extrabold" id="taAlertIconBox">
+          ⏱
+        </div>
+<h3 class="text-xl font-extrabold text-charcoal" id="taAlertHeadline">Zu langsam!</h3>
+<p class="text-sm text-neutral-600 mt-2 leading-relaxed font-medium" id="taAlertMessage">
+          Zu langsam! Schließe vor Ablauf der Zeit ab.
+        </p>
+<div class="mt-5 flex flex-col gap-2" id="taAlertActionBtns">
+<button class="hidden w-full py-3 rounded-xl bg-terracotta hover:bg-terracottaDark text-white font-extrabold text-xs tracking-wide shadow-md transition" id="btnTaReduceTime" onclick="reduceTimeAttackWindowByHalfSec()">
+            ⚡ Zeit um 0,5 Sek. verringern
+          </button>
+<button class="w-full py-3 rounded-xl bg-charcoal text-sand font-extrabold text-xs tracking-wide shadow-lg" onclick="closeTimeAttackAlertModal()">
+            Verstanden &amp; Weiter
+          </button>
+</div>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- MODAL B: DRILL TARGET BIOMECHANICS INFO ((i) Button on Screen 4)    -->
+<!-- =================================================================== -->
+<div class="hidden absolute inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-5" id="modalDrillInfo">
+<div class="w-full max-w-[355px] bg-white rounded-3xl p-5 shadow-2xl border border-neutral-200">
+<div class="flex items-center justify-between mb-2">
+<span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta">Ziel-Orientierung</span>
+<button class="text-neutral-400 hover:text-charcoal font-bold" onclick="closeDrillInfoModal()">✕</button>
+</div>
+<h3 class="text-lg font-extrabold text-charcoal" id="drillModalHeadline">Basic • Vollspann</h3>
+<p class="text-xs text-neutral-600 mt-1 leading-relaxed" id="drillModalDesc"></p>
+<div class="mt-3 p-3 rounded-2xl bg-cream border border-neutral-200 space-y-1.5 text-xs" id="drillModalTargetsList"></div>
+<button class="w-full mt-4 py-2.5 rounded-xl bg-terracotta text-white font-bold text-xs" onclick="closeDrillInfoModal()">
+          Schließen
+        </button>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- MODAL C: ESP32 WLAN / HIL CONNECTION SETTINGS                       -->
+<!-- =================================================================== -->
+<div class="hidden absolute inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-5" id="modalConnectionSettings">
+<div class="w-full max-w-[360px] bg-white rounded-3xl p-5 shadow-2xl border border-neutral-200">
+<div class="flex items-center justify-between mb-3"><span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta">KickCoach-BLE</span><button class="text-neutral-400 hover:text-charcoal font-bold" onclick="closeConnectionModal()">✕</button></div>
+<h3 class="text-base font-extrabold text-charcoal mb-1">Sensor verbinden</h3>
+<p class="text-xs text-neutral-600 leading-relaxed">Die Verbindung nutzt Bluetooth Low Energy. WLAN oder Mobilfunk bleiben für den Internetzugang verfügbar.</p>
+<div class="rounded-2xl bg-neutral-100 p-3 my-3 text-[11px] text-neutral-700"><strong class="block text-charcoal mb-1">Browser-Voraussetzung</strong>Auf iPhone und iPad die HTTPS-Seite im Browser <strong>Bluefy</strong> öffnen. Auf Android und Desktop Chrome oder Edge verwenden. Bluetooth benötigt eine sichere HTTPS-Verbindung.</div>
+<div class="grid grid-cols-2 gap-2 text-[10px] mb-3"><div class="rounded-xl bg-cream p-2"><span class="block text-neutral-500">Verbindungsstatus</span><strong id="connectionModalStatus">Getrennt</strong></div><div class="rounded-xl bg-cream p-2"><span class="block text-neutral-500">Sensorname</span><strong id="connectionDeviceName">KickCoach</strong></div></div>
+<button class="w-full py-3 rounded-xl bg-terracotta hover:bg-terracottaDark text-white font-extrabold text-xs" onclick="toggleSensorConnection()">Mit Sensor verbinden</button>
+<button class="w-full mt-2 py-2 rounded-xl bg-neutral-100 text-charcoal font-bold text-xs" onclick="closeConnectionModal()">Schließen</button>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- MODAL D: HISTORY SESSION DEEP-DIVE MODAL                            -->
+<!-- =================================================================== -->
+<div class="hidden absolute inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" id="modalHistoryDetail">
+<div class="w-full max-h-[88%] bg-cream rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl border border-white overflow-y-auto no-scrollbar">
+<div class="flex items-center justify-between mb-3">
+<div>
+<span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta" id="histModalDate">11/10/26</span>
+<h3 class="text-lg font-extrabold text-charcoal" id="histModalTitle">Basic – Vollspann</h3>
+</div>
+<button class="w-8 h-8 rounded-full bg-neutral-200 hover:bg-neutral-300 flex items-center justify-center font-bold text-charcoal" onclick="closeHistoryDetailModal()">✕</button>
+</div>
+<div class="apple-card p-3.5 mb-3">
+<div class="grid grid-cols-12 gap-2 items-center">
+<div class="col-span-7 flex justify-center">
+<svg class="w-40 h-40 overflow-visible" id="histModalRadarSvg" viewbox="0 0 340 340"></svg>
+</div>
+<div class="col-span-5 flex flex-col items-center bg-neutral-900 rounded-2xl p-2">
+<svg class="w-16 h-28 overflow-visible" id="histModalShoeSvg" viewbox="0 0 150 250"></svg>
+<span class="text-[10px] font-extrabold text-white mt-1" id="histModalPsiText">Trefferfläche: Mittig</span>
+</div>
+</div>
+</div>
+<!-- Clean Wording Metrics Snapshot inside History Modal -->
+<div class="grid grid-cols-3 gap-2 mb-3 text-center">
+<div class="apple-card p-2.5">
+<span class="text-[10px] text-neutral-400 font-bold block">Kraftübertragung</span>
+<span class="text-xs font-extrabold font-mono text-charcoal" id="histModalQOmega">79%</span>
+</div>
+<div class="apple-card p-2.5">
+<span class="text-[10px] text-neutral-400 font-bold block">Gelenkstabilität</span>
+<span class="text-xs font-extrabold text-charcoal" id="histModalDTheta">Sehr fest</span>
+</div>
+<div class="apple-card p-2.5">
+<span class="text-[10px] text-neutral-400 font-bold block">Abbremsen</span>
+<span class="text-xs font-extrabold font-mono text-charcoal" id="histModalTau">72 ms</span>
+</div>
+<div class="apple-card p-2.5">
+<span class="text-[10px] text-neutral-400 font-bold block">Fußhaltung</span>
+<span class="text-xs font-extrabold font-mono text-charcoal" id="histModalHaltung">-32° / +2°</span>
+</div>
+<div class="apple-card p-2.5">
+<span class="text-[10px] text-neutral-400 font-bold block">Schusshärte</span>
+<span class="text-xs font-extrabold font-mono text-terracotta" id="histModalVBall">130.5 km/h</span>
+</div>
+<div class="apple-card p-2.5">
+<span class="text-[10px] text-neutral-400 font-bold block">Effet</span>
+<span class="text-xs font-extrabold font-mono text-terracotta" id="histModalETan">13.1%</span>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl bg-charcoal text-sand font-bold text-xs" onclick="closeHistoryDetailModal()">
+          Schließen
+        </button>
+</div>
+</div>
+
+<div class="hidden absolute inset-0 z-[70] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3" id="modalShotGoal">
+<div class="w-full max-w-[405px] max-h-[94%] overflow-y-auto no-scrollbar bg-white rounded-3xl p-4 shadow-2xl border border-neutral-200">
+<div class="flex items-center justify-between gap-2 mb-2"><div><span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta" id="shotGoalEyebrow">Kalibrierungsschuss</span><h3 class="text-lg font-extrabold text-charcoal" id="shotGoalTitle">Wo ist der Ball eingeschlagen?</h3></div><span class="px-2.5 py-1 rounded-full bg-terracotta/15 text-terracotta text-[11px] font-extrabold" id="modalCalibrationProgress">0/5</span></div>
+<p class="text-xs leading-relaxed text-neutral-600 mb-3" id="shotGoalHelp">Schieße einen Ball. Tippe danach den tatsächlichen Einschlagpunkt an – auch weit neben dem Tor oder oberhalb der Latte.</p>
+<div class="rounded-2xl bg-[#E6ECE4] p-2 border border-neutral-300 shadow-inner"><svg aria-label="Tippbare Torfläche von minus sechs bis plus sechs Metern und null bis fünf Metern Höhe" class="w-full h-auto touch-manipulation cursor-crosshair" id="shotGoalPickSvg" onclick="handleShotGoalClick(event)" viewbox="0 0 600 300">
+<rect fill="#EDF2EB" height="300" rx="10" width="600" x="0" y="0"></rect><rect fill="#B5C7B0" height="25" width="600" x="0" y="275"></rect><text fill="#69736A" font-size="12" text-anchor="middle" x="300" y="16">5,0 m</text><text fill="#596357" font-size="11" text-anchor="middle" x="300" y="292">0,0 m</text>
+<path d="M117 153 L129 165 V275 H117 M483 153 L471 165 V275 H483 M129 165 H471" fill="rgba(255,255,255,.50)" stroke="#737B72" stroke-width="2"></path><g stroke="#8E968D" stroke-opacity=".55" stroke-width="1"><path d="M160 153V275 M205 153V275 M250 153V275 M300 153V275 M350 153V275 M395 153V275 M440 153V275 M117 183H483 M117 214H483 M117 244H483"></path></g><path d="M117 275V153H483V275" fill="none" stroke="#2B2A29" stroke-linejoin="round" stroke-width="6"></path><path d="M0 25V275 M600 25V275" stroke="#B0B8AE" stroke-dasharray="4 5"></path><path d="M0 25H600" stroke="#B0B8AE" stroke-dasharray="4 5"></path><text fill="#596357" font-size="11" text-anchor="start" x="18" y="288">−6 m</text><text fill="#596357" font-size="11" text-anchor="end" x="582" y="288">+6 m</text><text fill="#596357" font-size="10" text-anchor="end" x="107" y="145">2,44 m Latte</text><g id="shotGoalMarkerLayer"></g>
+<rect fill="transparent" height="300" pointer-events="all" width="600" x="0" y="0"></rect>
+</svg></div>
+<div class="flex justify-between mt-2 text-[10px] text-neutral-500"><span>Links −6,0 m</span><span>Torbreite ±3,66 m</span><span>Rechts +6,0 m</span></div>
+<div class="flex items-center justify-between gap-2 mt-3"><button class="hidden flex-1 py-2.5 rounded-xl bg-neutral-100 text-charcoal font-bold text-xs" id="btnSkipShotGoal" onclick="skipShotGoal()">Überspringen</button><button class="py-2.5 px-3 rounded-xl bg-charcoal text-sand font-bold text-xs" id="btnShotGoalConnect" onclick="toggleSensorConnection()">Mit Sensor verbinden</button><button class="py-2.5 px-3 rounded-xl bg-neutral-100 text-neutral-600 font-bold text-xs" id="btnSkipCalibrationPreview" onclick="byId('modalShotGoal').classList.add('hidden')">Ohne Sensor ansehen</button><button class="hidden flex-1 py-2.5 rounded-xl bg-sageDark text-white font-extrabold text-xs" id="btnCloseCalibration" onclick="closeShotGoalModal()">Kalibrierung abschließen</button></div>
+<p class="text-[11px] text-neutral-500 mt-2 text-center" id="shotGoalFeedback">Warte auf den nächsten Sensorschuss.</p>
+</div>
+</div>
+<div class="hidden absolute inset-0 z-[80] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3" id="modalValidation">
+<div class="w-full max-w-[390px] max-h-[94%] overflow-y-auto no-scrollbar bg-white rounded-3xl p-5 shadow-2xl border border-neutral-200">
+<div class="flex items-center justify-between mb-1"><span class="text-[10px] font-extrabold uppercase tracking-wider text-terracotta">Validierungsmodus</span><span class="text-[10px] font-bold text-neutral-500" id="validationShotCounter">Schuss 1</span></div>
+<h3 class="text-lg font-extrabold text-charcoal">Schuss beschriften</h3><p class="text-xs text-neutral-600 mt-1 mb-3" id="validationModalSummary">Torposition übernommen.</p>
+<div class="hidden mb-3" id="validationMissWrap"><label class="block text-[11px] font-bold text-charcoal mb-1" for="validationMissReason">Fehlschuss-Grund</label><select class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-xs" id="validationMissReason"><option value="">Bitte auswählen</option><option value="daneben">Daneben</option><option value="drüber">Drüber</option><option value="Mauer">Mauer</option></select></div>
+<div class="mb-3"><label class="block text-[11px] font-bold text-charcoal mb-1" for="validationTechScore">Technik-Score (1–10)</label><select class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-xs" id="validationTechScore"><option value="">Bitte bewerten</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></div>
+<div class="hidden mb-3" id="validationEffetWrap"><label class="block text-[11px] font-bold text-charcoal mb-1" for="validationEffetScore">Sichtbarer Effet (1–10)</label><select class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-xs" id="validationEffetScore"><option value="">Bitte auswählen</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></div>
+<div class="hidden mb-3" id="validationDipWrap"><label class="block text-[11px] font-bold text-charcoal mb-1" for="validationDipScore">Sichtbarer Dip-Effekt (1–10)</label><select class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-xs" id="validationDipScore"><option value="">Bitte auswählen</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></div>
+<div class="mb-3"><label class="block text-[11px] font-bold text-charcoal mb-1" for="validationNotes">Notiz (optional)</label><textarea class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-xs" id="validationNotes" placeholder="Beobachtung zum Schuss …" rows="2"></textarea></div>
+<div class="grid grid-cols-2 gap-2"><button class="py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 font-bold text-xs" onclick="markValidationShotInvalid()">Ungültig markieren</button><button class="py-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 font-bold text-xs" onclick="discardValidationShot()">Schuss verwerfen</button></div>
+<button class="w-full mt-2.5 py-3 rounded-xl bg-terracotta text-white font-extrabold text-xs" onclick="confirmValidationShot()">Validierung speichern</button>
+</div>
+</div>
+</div>
+<!-- ===================================================================== -->
+<!-- JAVASCRIPT ARCHITECTURE: ESP32 C-CODE PORT, UI & AI COACH ENGINE      -->
+<!-- ===================================================================== -->
+
+<script>
+'use strict';
+
+const BLE_CONFIG = {
+  deviceNamePrefix: 'KickCoach',
+  service: '4fafc201-1fb5-459e-8fcc-c5c9c331914b',
+  shot: 'beb5483e-36e1-4688-b7f5-ea07361b26a8',
+  live: 'beb5483e-36e1-4688-b7f5-ea07361b26a9',
+  command: 'beb5483e-36e1-4688-b7f5-ea07361b26aa'
+};
+
+const VALIDATION_STORAGE_KEY = 'kickcoach_v4_validation_records';
+const HISTORY_STORAGE_KEY = 'kickcoach_v4_history';
+const LAST_SHOT_STORAGE_KEY = 'kickcoach_v4_last_shot_id';
+const VALIDATION_CSV_COLUMNS = [
+  'shot_uid','timestamp_iso','session_id','shot_number_in_session','is_valid','mode','technique','foot','distance_m','pitch_position',
+  'is_goal','goal_sector','goal_precision','miss_reason','tech_score','effet_score','dip_score','notes','psi_n_norm_deg','phi_roll_norm_deg',
+  'clicked_y_goal_m','clicked_z_goal_m','psi_n_deg','alpha_n_deg','T_stoss_ms','a_peak_g','dv_stoss_mps','delta_max_cm','dtheta_norm',
+  'v_treff_mps','v_normal_mps','v_tan_mps','E_tan','Q_omega','M_eff_kg','k_ind','v_ball_mps','v_ball_kmh','theta_pitch_deg',
+  'phi_roll_deg','alpha_rel_s1','theta_ft_deg','tau_half_ms','y_goal_m','z_goal_m','on_target'
+];
+const RECONSTRUCTED_CSV_FIELDS = [
+  'psi_n_deg','alpha_n_deg','T_stoss_ms','a_peak_g','dv_stoss_mps','delta_max_cm','dtheta_norm','v_treff_mps','v_normal_mps','v_tan_mps',
+  'E_tan','Q_omega','M_eff_kg','k_ind','v_ball_mps','v_ball_kmh','theta_pitch_deg','phi_roll_deg','alpha_rel_s1','theta_ft_deg','tau_half_ms',
+  'y_goal_m','z_goal_m','on_target'
+];
+
+const KICKCOACH_SYSTEM_PROMPT = `Du bist KickCoach, ein präziser Fußball-Biomechanik-Coach. Antworte frei, abwechslungsreich und individuell; verwende niemals eine starre Vier-Punkte-Schablone. Decke in einer klar gegliederten, kompakten Antwort stets Analyse, Bewertung, konkrete Optimierung und Motivation ab. Nutze ausschließlich die tatsächlich übermittelten Sensormesswerte und geklickten Tor-Koordinaten. Erfinde keine Messwerte und kennzeichne fehlende Daten.`;
+
+const MODES_META = {
+  'Basics': { title: 'Basics', desc: 'Freies Schießen ohne Zeitdruck' },
+  'Freistöße': { title: 'Freistöße', desc: 'Ruhende Bälle über die gegnerische Mauer · Vorschau' },
+  'Time Attack': { title: 'Time Attack', desc: 'Schüsse unter Zeitdruck · Vorschau' }
+};
+
+const TECHNIQUES_META = {
+  'Vollspann': { id:'Vollspann', espType:'vollspann', title:'Vollspann', subtitle:'Maximale gradlinige Power', description:'Triff den Ball zentral mit dem Spann, halte den Fuß gerade und schwinge das Bein vollständig durch.', psiRange:[-10,10], qOmegaRange:[.75,.85], tStossRange:[8,10], dThetaMax:.22, eTanRange:[.08,.18], tauHalfRange:[65,88], thetaFtRange:[50,75], phiRollRange:[-12,12], zoneLabel:'Zentraler Spann', cleanTargets:{trefferflaeche:'Zentraler Spann',gelenkstabilitaet:'Sprunggelenk stabil verriegeln',kraftuebertragung:'Hohe Impulsübertragung',fusshaltung:'Fußspitze leicht strecken',schwungdynamik:'Explosiv durch den Ball beschleunigen',abbremsen:'Flüssig durchschwingen',schusshaerte:'Kompakter Ballkontakt',effet:'Geradliniger Ballflug'} },
+  'Innenseite-Effet': { id:'Innenseite-Effet', espType:'innenrist', title:'Innenseite-Effet', subtitle:'Präziser Schlenzer mit Effet', description:'Wische mit der Innenseite seitlich am Ball vorbei und halte die Bewegung kontrolliert durch.', psiRange:[65,88], qOmegaRange:[.75,.86], tStossRange:[9.8,12.5], dThetaMax:.24, eTanRange:[.25,.45], tauHalfRange:[62,85], thetaFtRange:[38,58], phiRollRange:[40,65], zoneLabel:'Breite Innenseite', cleanTargets:{trefferflaeche:'Breite Innenseite',gelenkstabilitaet:'Stabil geöffnet und angespannt',kraftuebertragung:'Kontrollierte Übertragung',fusshaltung:'Fuß klar öffnen',schwungdynamik:'Seitlich am Ball vorbeiwischen',abbremsen:'Kontrollierter Bogen-Nachschwung',schusshaerte:'Dosiert und präzise',effet:'Seitenspin'} },
+  'Außenrist': { id:'Außenrist', espType:'aussenrist', title:'Außenrist', subtitle:'Trivela-Flugkurve mit Außendrall', description:'Nutze die Außenseite des Fußes und kippe den Fuß stabil nach innen ab.', psiRange:[-70,-42], qOmegaRange:[.68,.79], tStossRange:[8.6,11], dThetaMax:.32, eTanRange:[.25,.45], tauHalfRange:[58,82], thetaFtRange:[36,60], phiRollRange:[-50,-30], zoneLabel:'Vorderer Außenrist', cleanTargets:{trefferflaeche:'Vorderer Außenrist',gelenkstabilitaet:'Innenkippung stabil halten',kraftuebertragung:'Sauberer Impuls',fusshaltung:'Fuß kontrolliert einkippen',schwungdynamik:'Zügig von innen nach außen schwingen',abbremsen:'Mittlerer Durchschwung',schusshaerte:'Druckvoller Effetschuss',effet:'Außendrall'} },
+  'Top-Spin': { id:'Top-Spin', espType:'flatterball', title:'Top-Spin', subtitle:'Steil abfallende Flugkurve', description:'Triff den Ball mittig und führe den Fuß beim Schuss kontrolliert über den Ball.', psiRange:[-6,6], qOmegaRange:[.81,.865], tStossRange:[7.8,9.4], dThetaMax:.09, eTanRange:[.005,.04], tauHalfRange:[30,48], thetaFtRange:[15,28], phiRollRange:[-6,6], zoneLabel:'Oberer Spann', cleanTargets:{trefferflaeche:'Mittig am oberen Spann',gelenkstabilitaet:'Sehr fest fixiert',kraftuebertragung:'Hohe Effizienz',fusshaltung:'Gerade und kontrolliert',schwungdynamik:'Peitschenartiger Impuls',abbremsen:'Kurzer Stopp nach Kontakt',schusshaerte:'Hohe Abfluggeschwindigkeit',effet:'Vertikaler Dip-Effekt'} }
+};
+
+const appState = {
+  screen:'screen-home', sensorConnected:false, activeFoot:'R', expandedHomeMode:'Basics', selectedMode:'Basics',
+  selectedHeight:'high', expandedTech:'Vollspann', selectedTech:'Vollspann', displayMode:'last', distanceM:16, pitchPosition:'Zentral',
+  wallSize:4, wallPos:'left', validationMode:false, validationSession:false, sessionId:null,
+  sessionActive:false, sessionResetSent:false, timerSec:0, timerHandle:null, sessionShots:[], sessionShotCounter:0, currentPendingShot:null,
+  calibration:{calib_count:0}, lastClickedGoal:null, validationRecords:[], history:[], lastKnownShotId:0, validationSessionStartCount:0,
+  processedShotIds:new Set(), live:{imu_ok:null,sys_state:'–',battery_v:null,battery_pct:null,ax_g:null,ay_g:null,az_g:null,theta_pitch_deg:null,phi_roll_deg:null,latest_shot_id:null},
+  taWindowSec:4, taPhase:'idle', taRemainingSec:4, taFastStreak:0, taInterval:null,
+  stopHoldStartMs:0, stopHoldRafId:null, goalPopupComplete:false, calibrationDone:false
+};
+
+const BLE = { device:null, server:null, service:null, shotCharacteristic:null, liveCharacteristic:null, commandCharacteristic:null,
+  shotBuffer:'', liveBuffer:'', shotDecoder:new TextDecoder(), liveDecoder:new TextDecoder() };
+let toastTimer = null;
+
+function byId(id){ return document.getElementById(id); }
+function finite(value, fallback=0){ const n=Number(value); return Number.isFinite(n)?n:fallback; }
+function clamp(value,min,max){ return Math.max(min,Math.min(max,value)); }
+function fmt(value,digits=1){ if(value===null||value===undefined||value==='')return'–';return Number.isFinite(Number(value))?Number(value).toFixed(digits).replace('.',','):'–'; }
+function applyFootSign(value, foot=appState.activeFoot){ return finite(value)*(foot==='L'?-1:1); }
+function escapeHtml(value){ return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function getScoreTier(pct){ const s=clamp(Math.round(finite(pct)),0,100); if(s<50)return{color:'#EF4444',label:'Schlecht'}; if(s<70)return{color:'#F97316',label:'In Ordnung'}; if(s<85)return{color:'#10B981',label:'Gut'}; if(s<95)return{color:'#1D4ED8',label:'Sehr gut'}; return{color:'#8B5CF6',label:'Exzellent'}; }
+
+function showSensorToast(type,headline,bodyText){
+  const banner=byId('sensorPopupBanner'); if(!banner)return;
+  byId('sensorPopupHeadline').textContent=headline; byId('sensorPopupBody').textContent=bodyText;
+  const box=byId('sensorPopupBox'),badge=byId('sensorPopupBadge');
+  if(type==='connected'){box.className='pointer-events-auto w-full max-w-[375px] rounded-2xl p-4 shadow-2xl border-2 backdrop-blur-xl flex items-start gap-3.5 bg-white/95 border-emerald-500';badge.className='w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-extrabold text-base bg-emerald-100 text-emerald-700';badge.textContent='✓';}
+  else{box.className='pointer-events-auto w-full max-w-[375px] rounded-2xl p-4 shadow-2xl border-2 backdrop-blur-xl flex items-start gap-3.5 bg-white/95 border-rose-500';badge.className='w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-extrabold text-base bg-rose-100 text-rose-600';badge.textContent='!';}
+  banner.classList.remove('opacity-0','-translate-y-3');banner.classList.add('opacity-100','translate-y-0');
+  if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(hideSensorToast,4800);
+}
+function hideSensorToast(){const el=byId('sensorPopupBanner');if(!el)return;el.classList.remove('opacity-100','translate-y-0');el.classList.add('opacity-0','-translate-y-3');}
+
+function syncSensorHeaderUI(){
+  const connected=appState.sensorConnected;
+  const dis=byId('svgSensorDisconnected'),con=byId('svgSensorConnected'),status=byId('sensorHeaderStatus');
+  if(dis&&con){dis.classList.toggle('hidden',connected);dis.classList.toggle('flex',!connected);con.classList.toggle('hidden',!connected);con.classList.toggle('flex',connected);}
+  if(status){status.textContent=connected?'Verbunden':'Getrennt';status.className=`text-xs font-extrabold leading-tight ${connected?'text-emerald-700':'text-rose-600'}`;}
+  const dot=byId('bleStatusDot'),text=byId('bleStatusText');
+  if(dot)dot.className=`w-2 h-2 rounded-full shrink-0 ${connected?'bg-emerald-500':'bg-rose-500'}`;
+  if(text){text.textContent=connected?'Sensor verbunden':'Sensor getrennt';text.className=connected?'text-emerald-700 truncate':'text-rose-700 truncate';}
+  if(byId('connectionModalStatus'))byId('connectionModalStatus').textContent=connected?'Verbunden':'Getrennt';
+  if(byId('connectionDeviceName'))byId('connectionDeviceName').textContent=BLE.device?.name||'KickCoach';
+  if(byId('btnShotGoalConnect'))byId('btnShotGoalConnect').classList.toggle('hidden',connected);
+  if(byId('btnShotGoalConnect'))byId('btnShotGoalConnect').textContent=connected?'Verbunden':'Mit Sensor verbinden';
+  updateLiveStatusUI();
+}
+function updateLiveStatusUI(){
+  const live=appState.live;
+  const imu=live.imu_ok===null?'IMU –':(live.imu_ok?'IMU OK':'IMU Fehler');
+  if(byId('imuStatusText'))byId('imuStatusText').textContent=`${imu} · ${live.sys_state??'–'}`;
+  if(byId('batteryStatusText'))byId('batteryStatusText').textContent=live.battery_pct===null?'Akku –':`Akku ${fmt(live.battery_pct,0)}% · ${fmt(live.battery_v,2)}V`;
+  if(byId('liveAxisAx'))byId('liveAxisAx').textContent=`ax ${fmt(live.ax_g,2)}g`;
+  if(byId('liveAxisAy'))byId('liveAxisAy').textContent=`ay ${fmt(live.ay_g,2)}g`;
+  if(byId('liveAxisAz'))byId('liveAxisAz').textContent=`az ${fmt(live.az_g,2)}g`;
+  if(byId('liveAxisPitch'))byId('liveAxisPitch').textContent=`Neigung ${fmt(live.theta_pitch_deg,1)}°`;
+  if(byId('liveAxisRoll'))byId('liveAxisRoll').textContent=`Kippung ${fmt(live.phi_roll_deg,1)}°`;
+}
+
+async function toggleSensorConnection(){ if(appState.sensorConnected){disconnectSensor();return;} await connectSensorFromUserGesture(); }
+async function connectSensorFromUserGesture(){
+  if(!window.isSecureContext || !navigator.bluetooth || typeof navigator.bluetooth.requestDevice!=='function'){
+    showSensorToast('disconnected','Achtung! Dein Schuh ist offen.','Klicke erneut auf das Schuh-Symbol oben links, um die Verbindung herzustellen. Hinweis für iOS: Öffne die HTTPS-Seite im Browser Bluefy.');
+    openConnectionModal(); return;
+  }
+  try{
+    const syncSinceId=appState.lastKnownShotId;
+    const device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:BLE_CONFIG.deviceNamePrefix}],optionalServices:[BLE_CONFIG.service]});
+    BLE.device=device; device.addEventListener('gattserverdisconnected',handleGattDisconnected);
+    BLE.server=await device.gatt.connect(); BLE.service=await BLE.server.getPrimaryService(BLE_CONFIG.service);
+    BLE.shotCharacteristic=await BLE.service.getCharacteristic(BLE_CONFIG.shot);
+    BLE.liveCharacteristic=await BLE.service.getCharacteristic(BLE_CONFIG.live);
+    BLE.commandCharacteristic=await BLE.service.getCharacteristic(BLE_CONFIG.command);
+    BLE.shotBuffer='';BLE.liveBuffer='';BLE.shotDecoder=new TextDecoder();BLE.liveDecoder=new TextDecoder();
+    BLE.shotCharacteristic.addEventListener('characteristicvaluechanged',e=>ingestBleData('shot',e.target.value,false));
+    BLE.liveCharacteristic.addEventListener('characteristicvaluechanged',e=>ingestBleData('live',e.target.value,false));
+    await BLE.shotCharacteristic.startNotifications(); await BLE.liveCharacteristic.startNotifications();
+    appState.sensorConnected=true; syncSensorHeaderUI();
+    showSensorToast('connected','Sensor verbunden',`${device.name||'KickCoach'} ist über BLE gekoppelt. WLAN/Mobilfunk bleiben verfügbar.`);
+    try{const value=await BLE.shotCharacteristic.readValue();ingestBleData('shot',value,true);}catch(e){console.info('Shot READ nicht verfügbar:',e);}
+    try{const value=await BLE.liveCharacteristic.readValue();ingestBleData('live',value,true);}catch(e){console.info('Live READ nicht verfügbar:',e);}
+    await sendBleCommand({cmd:'sync',since_id:syncSinceId});
+    if(appState.sessionActive&&!appState.sessionResetSent){await sendBleCommand({cmd:'reset_cal'});appState.sessionResetSent=true;}
+  }catch(error){
+    if(error?.name==='NotFoundError')showSensorToast('disconnected','Kein Sensor ausgewählt','Wähle ein Gerät mit dem Namen KickCoach … aus.');
+    else showSensorToast('disconnected','Verbindung fehlgeschlagen',error?.message||'Der BLE-Sensor konnte nicht verbunden werden.');
+    appState.sensorConnected=false;syncSensorHeaderUI();
+  }
+}
+function handleGattDisconnected(){
+  appState.sensorConnected=false;BLE.server=null;BLE.shotCharacteristic=null;BLE.liveCharacteristic=null;BLE.commandCharacteristic=null;
+  syncSensorHeaderUI();showSensorToast('disconnected','Achtung! Dein Schuh ist offen.','Klicke erneut auf das Schuh-Symbol oben links, um die Verbindung herzustellen. (Bei iOS bitte die HTTPS-Seite im Browser Bluefy öffnen.)');
+}
+function disconnectSensor(){try{if(BLE.device?.gatt?.connected)BLE.device.gatt.disconnect();else handleGattDisconnected();}catch(e){handleGattDisconnected();}}
+async function sendBleCommand(command){
+  if(!appState.sensorConnected||!BLE.commandCharacteristic){showSensorToast('disconnected','Sensor nicht verbunden','Der Befehl konnte nicht gesendet werden. Verbinde zuerst deinen KickCoach-Sensor.');return false;}
+  try{
+    const bytes=new TextEncoder().encode(JSON.stringify(command));
+    if(typeof BLE.commandCharacteristic.writeValueWithoutResponse==='function')await BLE.commandCharacteristic.writeValueWithoutResponse(bytes);
+    else await BLE.commandCharacteristic.writeValue(bytes);
+    return true;
+  }catch(error){showSensorToast('disconnected','BLE-Befehl fehlgeschlagen',error?.message||'Der Sensor hat den Befehl nicht angenommen.');return false;}
+}
+function ingestBleData(kind,dataView,flush=false){
+  if(!dataView)return;
+  const isShot=kind==='shot';const decoder=isShot?BLE.shotDecoder:BLE.liveDecoder;
+  const current=isShot?BLE.shotBuffer:BLE.liveBuffer;
+  let combined=current+decoder.decode(dataView,{stream:!flush});
+  const lines=combined.split('\n');const remainder=lines.pop()??'';
+  if(isShot)BLE.shotBuffer=remainder;else BLE.liveBuffer=remainder;
+  for(const line of lines){const clean=line.trim();if(clean)processBleJsonLine(kind,clean);}
+  if(flush&&remainder.trim()){
+    processBleJsonLine(kind,remainder.trim());
+    if(isShot)BLE.shotBuffer='';else BLE.liveBuffer='';
+  }
+}
+function processBleJsonLine(kind,line){
+  try{const payload=JSON.parse(line);if(kind==='shot')processShotPayload(payload);else processLivePayload(payload);}
+  catch(error){console.warn(`Ungültige ${kind}-JSON-Zeile`,error,line);}
+}
+function processLivePayload(payload){
+  if(payload?.data&&typeof payload.data==='object')payload=payload.data;
+  const fields=['imu_ok','sys_state','battery_v','battery_pct','latest_shot_id','ax_g','ay_g','az_g','gx_dps','gy_dps','gz_dps','u','theta_pitch_deg','phi_roll_deg'];
+  for(const key of fields)if(payload[key]!==undefined)appState.live[key]=payload[key];
+  if(payload.calibration&&typeof payload.calibration==='object'){
+    appState.calibration={...appState.calibration,...payload.calibration};
+    const count=Number(payload.calibration.calib_count);
+    if(Number.isFinite(count))appState.calibration.calib_count=clamp(count,0,5);
+    syncGoalCalibrationHeader();
+  }
+  updateLiveStatusUI();
+}
+function normalizeShotPayload(payload){
+  const nested=payload.data&&typeof payload.data==='object'?payload.data:payload;
+  const rec=nested.reconstructed&&typeof nested.reconstructed==='object'?nested.reconstructed:nested;
+  const reconstructed={...rec};
+  if(reconstructed.v_ball_kmh===undefined&&Number.isFinite(Number(reconstructed.v_ball_mps)))reconstructed.v_ball_kmh=Number(reconstructed.v_ball_mps)*3.6;
+  return {shot_id:nested.shot_id??payload.shot_id??null,has_shot:nested.has_shot??payload.has_shot??true,timestamp_ms:nested.timestamp_ms??payload.timestamp_ms??Date.now(),shot_type:nested.shot_type??payload.shot_type??'',height_level:nested.height_level??payload.height_level??appState.selectedHeight,calibration:nested.calibration??payload.calibration??null,reconstructed};
+}
+function processShotPayload(payload){
+  if(payload?.shots&&Array.isArray(payload.shots)){payload.shots.forEach(processShotPayload);return;}
+  const shot=normalizeShotPayload(payload);
+  if(shot.has_shot===false)return;
+  const id=shot.shot_id===null?`${shot.timestamp_ms}-${appState.processedShotIds.size}`:String(shot.shot_id);
+  if(appState.processedShotIds.has(id))return;
+  appState.processedShotIds.add(id);
+  if(shot.shot_id!==null){appState.lastKnownShotId=shot.shot_id;try{localStorage.setItem(LAST_SHOT_STORAGE_KEY,String(shot.shot_id));}catch(e){}}
+  if(shot.calibration&&typeof shot.calibration==='object')processLivePayload({calibration:shot.calibration});
+  if(!shot.reconstructed||typeof shot.reconstructed!=='object'||shot.reconstructed.valid===false){showSensorToast('disconnected','Schussdaten unvollständig','Der Sensor hat keine gültigen rekonstruierten Messwerte übertragen.');return;}
+  if(!appState.sessionActive)return;
+  handleNewMeasuredShot(shot);
+}
+function handleNewMeasuredShot(shotPayload){
+  if(appState.currentPendingShot){appState.currentPendingShot.goalSkipped=true;appState.currentPendingShot=null;}
+  const raw={...shotPayload,foot:appState.activeFoot,mode:appState.selectedMode,technique:appState.selectedTech,distance_m:appState.distanceM,pitch_position:appState.pitchPosition};
+  const evalResult=scoreCoachingMetrics(raw.reconstructed,appState.selectedTech,appState.selectedHeight,appState.activeFoot);
+  const shot={raw,eval:evalResult,goalOutcome:null,clickedGoal:null,goalSkipped:false,sessionShotNumber:++appState.sessionShotCounter,timestampIso:shotTimestampIso(shotPayload.timestamp_ms)};
+  appState.sessionShots.push(shot);appState.currentPendingShot=shot;
+  if(appState.selectedMode==='Time Attack'&&appState.taPhase==='active')registerTimeAttackShot();
+  if(appState.displayMode!=='last')appState.displayMode='last';
+  switchMetricDisplayMode('last',false);refreshTrainingDashboardUI();
+  openShotGoalModalForShot(shot);
+}
+function shotTimestampIso(value){const n=Number(value);const d=Number.isFinite(n)&&n>1e12?new Date(n):new Date();return d.toISOString();}
+
+function applyActiveFootToHeader(){const left=byId('btnFootL'),right=byId('btnFootR');if(left){left.className=appState.activeFoot==='L'?'px-3.5 py-1.5 rounded-xl text-[11px] font-extrabold bg-terracotta text-white shadow-sm transition':'px-3.5 py-1.5 rounded-xl text-[11px] font-extrabold text-charcoal/70 hover:text-charcoal transition';}if(right){right.className=appState.activeFoot==='R'?'px-3.5 py-1.5 rounded-xl text-[11px] font-extrabold bg-terracotta text-white shadow-sm transition':'px-3.5 py-1.5 rounded-xl text-[11px] font-extrabold text-charcoal/70 hover:text-charcoal transition';}}
+function setActiveFoot(foot){appState.activeFoot=foot==='L'?'L':'R';applyActiveFootToHeader();if(byId('dashboardFootIndicator'))byId('dashboardFootIndicator').textContent=appState.activeFoot==='L'?'Linker Fuß':'Rechter Fuß';refreshTrainingDashboardUI();}
+function setDistance(value){if(Number(value)===16)appState.distanceM=16;}
+function setPitchPosition(value){if(value==='Zentral')appState.pitchPosition='Zentral';}
+function selectHeightLevel(key){if(!['low','mid','high'].includes(key))return;appState.selectedHeight=key;['low','mid','high'].forEach(k=>{const b=byId(`btnHeight-${k}`);if(b)b.className=k===key?'px-3 py-1 rounded-lg bg-white text-charcoal shadow-sm transition':'px-3 py-1 rounded-lg text-neutral-600 transition';});}
+function toggleValidationMode(){appState.validationMode=!appState.validationMode;const b=byId('validationModeToggle');if(b){b.textContent=appState.validationMode?'Ein':'Aus';b.setAttribute('aria-pressed',String(appState.validationMode));b.className=appState.validationMode?'px-3 py-2 rounded-xl validation-mode-active text-[11px] font-extrabold':'px-3 py-2 rounded-xl bg-neutral-200 text-neutral-600 text-[11px] font-extrabold';}}
+
+function navigateTo(screenId){
+  if(appState.screen==='screen-training'&&screenId!=='screen-training'){stopSessionTimer();appState.sessionActive=false;}
+  appState.screen=screenId;
+  document.querySelectorAll('.screen-view').forEach(s=>s.classList.remove('active'));
+  const target=byId(screenId);if(target)target.classList.add('active');
+  const ids=['headerCenterBadge','headerCenterTimer','headerCenterTitle','headerRightLexiconBtn','headerRightHistoryBtn','headerRightDrillInfoBtn','headerRightFilterBtn','appBottomBar','bottomSlotHome','bottomSlotStop','bottomSlotSaveDiscard'];
+  ids.forEach(id=>{const e=byId(id);if(e){e.classList.add('hidden');e.classList.remove('flex','inline-flex');}});
+  const waben=byId('wabenBackgroundLayer');const desk=byId('desktopScreenLabel');
+  if(screenId==='screen-home'){
+    showHeaderElement('headerCenterBadge','inline-flex');showHeaderElement('headerRightLexiconBtn','flex');showHeaderElement('headerRightHistoryBtn','flex');if(waben)waben.style.opacity='1';if(desk)desk.textContent='Hauptmenü';
+  }else if(screenId==='screen-technique'){
+    showHeaderElement('headerCenterBadge','inline-flex');showHeaderElement('headerRightLexiconBtn','flex');showHeaderElement('headerRightHistoryBtn','flex');showHeaderElement('appBottomBar','flex');showHeaderElement('bottomSlotHome','flex');if(waben)waben.style.opacity='1';if(desk)desk.textContent='Schusstechnik';renderTechniqueCards();
+  }else if(screenId==='screen-training'){
+    showHeaderElement('headerCenterTimer','flex');showHeaderElement('headerRightDrillInfoBtn','flex');showHeaderElement('appBottomBar','flex');showHeaderElement('bottomSlotStop','flex');if(waben)waben.style.opacity='.18';if(desk)desk.textContent='BLE-Live-Training';setupTrainingSessionScreen();
+  }else if(screenId==='screen-report'){
+    const title=byId('headerCenterTitle');if(title){title.textContent='Trainingsbericht';title.classList.remove('hidden');}showHeaderElement('appBottomBar','flex');showHeaderElement('bottomSlotSaveDiscard','flex');if(waben)waben.style.opacity='.18';if(desk)desk.textContent='Trainingsbericht';populateReportScreen();
+  }else if(screenId==='screen-history'){
+    const title=byId('headerCenterTitle');if(title){title.textContent='Historie';title.classList.remove('hidden');}showHeaderElement('headerRightFilterBtn','flex');showHeaderElement('appBottomBar','flex');showHeaderElement('bottomSlotHome','flex');if(waben)waben.style.opacity='.25';if(desk)desk.textContent='Historie';applyHistoryFilters();
+  }
+}
+function showHeaderElement(id,display){const e=byId(id);if(e){e.classList.remove('hidden');e.classList.add(display);}}
+function toggleHomeModeCard(modeKey){['Basics','Freistöße','Time Attack'].forEach(m=>{const body=byId(`modeBody-${m}`),chev=byId(`modeChevron-${m}`);if(!body||!chev)return;const open=m===modeKey&&!body.classList.contains('open');body.classList.toggle('open',open);chev.style.transform=open?'rotate(180deg)':'rotate(0deg)';});}
+function chooseModeAndGoToTechniques(modeKey){appState.selectedMode=MODES_META[modeKey]?modeKey:'Basics';const meta=MODES_META[appState.selectedMode];if(byId('techModeBadge'))byId('techModeBadge').textContent=`• ${meta.title}`;if(byId('techModeExplanation'))byId('techModeExplanation').textContent=meta.desc;navigateTo('screen-technique');}
+function renderTechniqueCards(){
+  const container=byId('techniqueCardsList');if(!container)return;
+  container.innerHTML=Object.keys(TECHNIQUES_META).map(key=>{const t=TECHNIQUES_META[key],isOpen=appState.expandedTech===key;return `<div class="terracotta-card p-3.5 text-white"><button type="button" onclick="toggleTechCard('${t.id}')" class="w-full flex items-center justify-between text-left"><div><div class="athletic-title text-xl font-bold">${escapeHtml(t.title)}</div><div class="text-[11px] text-sandLight">${escapeHtml(t.subtitle)}</div></div><span class="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center">${isOpen?'−':'+'}</span></button><div class="accordion-body ${isOpen?'open':''}"><div class="pt-2.5 border-t border-white/25"><p class="text-xs text-white/95 leading-relaxed mb-2.5">${escapeHtml(t.description)}</p><div class="grid grid-cols-2 gap-1.5 bg-black/20 rounded-xl p-2.5 mb-3 text-[11px]"><div><span class="text-white/70">Treffpunkt:</span> <strong class="text-sand">${escapeHtml(t.zoneLabel)}</strong></div><div><span class="text-white/70">Kraftübertragung:</span> <strong class="text-sand">${Math.round(t.qOmegaRange[0]*100)}–${Math.round(t.qOmegaRange[1]*100)}%</strong></div></div><button onclick="launchTrainingWithTech('${t.id}')" class="w-full py-2.5 rounded-xl bg-sageDark text-white font-bold text-sm shadow-md border border-white/40">Training beginnen</button></div></div></div>`;}).join('');
+}
+function toggleTechCard(id){appState.expandedTech=appState.expandedTech===id?null:id;renderTechniqueCards();}
+function launchTrainingWithTech(id){appState.selectedTech=TECHNIQUES_META[id]?id:'Vollspann';navigateTo('screen-training');}
+
+function setWallSize(n){appState.wallSize=clamp(Number(n),1,5);[1,2,3,4,5].forEach(x=>{const b=byId(`btnHomeWallSize-${x}`);if(b)b.className=x===appState.wallSize?'flex-1 py-1 rounded-md font-bold bg-sand text-charcoal shadow-sm text-[11px]':'flex-1 py-1 rounded-md font-bold text-white/70 text-[11px]';});updateWallSummaryText();}
+function setWallPos(pos){if(!['left','center','right'].includes(pos))return;appState.wallPos=pos;['left','center','right'].forEach(x=>{const b=byId(`btnHomeWallPos-${x}`);if(b)b.className=x===pos?'flex-1 py-1 rounded-md font-bold bg-sand text-charcoal shadow-sm text-[11px]':'flex-1 py-1 rounded-md font-bold text-white/70 text-[11px]';});updateWallSummaryText();}
+function updateWallSummaryText(){const names={left:'Links',center:'Mitte',right:'Rechts'};if(byId('homeWallSummaryLabel'))byId('homeWallSummaryLabel').textContent=`${appState.wallSize} Spieler • ${names[appState.wallPos]}`;}
+
+function setupTrainingSessionScreen(){
+  const mode=MODES_META[appState.selectedMode]||MODES_META.Basics,tech=TECHNIQUES_META[appState.selectedTech]||TECHNIQUES_META.Vollspann;
+  if(byId('headerDrillBadgeText'))byId('headerDrillBadgeText').textContent=`${mode.title} / ${tech.title}`;
+  if(byId('dashboardFootIndicator'))byId('dashboardFootIndicator').textContent=appState.activeFoot==='L'?'Linker Fuß':'Rechter Fuß';
+  const ta=byId('timeAttackBox');if(ta)ta.classList.toggle('hidden',appState.selectedMode!=='Time Attack');
+  const tools=byId('validationSessionTools');appState.validationSession=appState.validationMode;if(tools)tools.classList.toggle('hidden',!appState.validationSession);
+  appState.sessionId=`kc-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;appState.sessionActive=true;appState.sessionResetSent=false;
+  appState.sessionShots=[];appState.sessionShotCounter=0;appState.validationSessionStartCount=appState.validationRecords.length;appState.currentPendingShot=null;appState.lastClickedGoal=null;appState.calibration={calib_count:0};appState.goalPopupComplete=false;appState.calibrationDone=false;appState.displayMode='last';appState.timerSec=0;
+  if(byId('aiCoachChatList'))byId('aiCoachChatList').innerHTML='<p class="text-neutral-500">Session gestartet. Warte auf den ersten echten BLE-Sensorschuss.</p>';
+  if(byId('coachModeBadge'))byId('coachModeBadge').textContent='Wartet auf Schuss';
+  if(appState.timerHandle)clearInterval(appState.timerHandle);updateSessionTimerUI();appState.timerHandle=setInterval(()=>{appState.timerSec++;updateSessionTimerUI();},1000);
+  if(appState.sensorConnected){sendBleCommand({cmd:'reset_cal'}).then(ok=>{if(ok)appState.sessionResetSent=true;});}
+  syncGoalCalibrationHeader();syncValidationSeriesUI();renderEmptyDashboard();openShotGoalModalForCalibration();
+}
+function updateSessionTimerUI(){const m=String(Math.floor(appState.timerSec/60)).padStart(2,'0'),s=String(appState.timerSec%60).padStart(2,'0');if(byId('trainingTimerDisplay'))byId('trainingTimerDisplay').textContent=`${m}:${s}`;if(byId('trainingElapsedInline'))byId('trainingElapsedInline').textContent=`${m}:${s}`;}
+function stopSessionTimer(){if(appState.timerHandle){clearInterval(appState.timerHandle);appState.timerHandle=null;}}
+
+function openConnectionModal(){const e=byId('modalConnectionSettings');if(e)e.classList.remove('hidden');syncSensorHeaderUI();}
+function closeConnectionModal(){const e=byId('modalConnectionSettings');if(e)e.classList.add('hidden');}
+function openLexiconModal(){byId('modalLexicon')?.classList.remove('hidden');}
+function closeLexiconModal(){byId('modalLexicon')?.classList.add('hidden');}
+function openDrillInfoModal(){const m=MODES_META[appState.selectedMode],t=TECHNIQUES_META[appState.selectedTech];if(byId('drillModalHeadline'))byId('drillModalHeadline').textContent=`${m.title} • ${t.title}`;if(byId('drillModalDesc'))byId('drillModalDesc').textContent=t.description;if(byId('drillModalTargetsList'))byId('drillModalTargetsList').innerHTML=Object.entries(t.cleanTargets).map(([k,v])=>`<div><strong>${escapeHtml(k.replaceAll('_',' '))}:</strong> ${escapeHtml(v)}</div>`).join('');byId('modalDrillInfo')?.classList.remove('hidden');}
+function closeDrillInfoModal(){byId('modalDrillInfo')?.classList.add('hidden');}
+
+function openShotGoalModalForCalibration(){appState.goalPopupComplete=false;const m=byId('modalShotGoal');if(!m)return;byId('shotGoalEyebrow').textContent='Kalibrierungsschüsse';byId('shotGoalTitle').textContent='Kalibrierung starten';byId('shotGoalHelp').textContent='Absolviere fünf echte Schüsse. Tippe nach jedem Schuss den tatsächlichen Einschlagpunkt an – die Fläche reicht bis ±6,0 m und 5,0 m Höhe.';byId('shotGoalFeedback').textContent=appState.sensorConnected?'Warte auf Kalibrierungsschuss 1 von 5.':'Verbinde den Sensor und führe dann den ersten Kalibrierungsschuss aus.';byId('btnSkipShotGoal').classList.add('hidden');byId('btnCloseCalibration').classList.add('hidden');byId('btnShotGoalConnect').classList.toggle('hidden',appState.sensorConnected);m.classList.remove('hidden');syncGoalCalibrationHeader();}
+function openShotGoalModalForShot(shot){const m=byId('modalShotGoal');if(!m)return;const n=appState.calibration.calib_count;const calibrating=n<5;byId('shotGoalEyebrow').textContent=calibrating?'Kalibrierungsschuss':'Schusseinschlag';byId('shotGoalTitle').textContent=calibrating?`Kalibrierungsschuss ${n+1} von 5`:`Wo ist Schuss #${shot.sessionShotNumber} eingeschlagen?`;byId('shotGoalHelp').textContent=calibrating?'Tippe den echten Einschlagpunkt an. Die Auswahl sendet die Kalibrierkoordinaten an den Sensor.':'Tippe den tatsächlichen Einschlagpunkt an. Der Vorgang blockiert die Session nicht; ein weiterer Schuss ersetzt die offene Auswahl.';byId('shotGoalFeedback').textContent=`Sensorschuss ${shot.raw.shot_id??shot.sessionShotNumber} empfangen · bitte Einschlag markieren.`;byId('btnSkipShotGoal').classList.toggle('hidden',calibrating);byId('btnCloseCalibration').classList.add('hidden');byId('btnShotGoalConnect').classList.toggle('hidden',appState.sensorConnected);drawShotGoalMarker(null,null);m.classList.remove('hidden');syncGoalCalibrationHeader();}
+function drawShotGoalMarker(y,z){const layer=byId('shotGoalMarkerLayer');if(!layer)return;if(y===null||z===null){layer.innerHTML='';return;}const x=300+(y/6)*144,py=275-(z/5)*250;layer.innerHTML=`<g transform="translate(${clamp(x,0,600)} ${clamp(py,0,300)})"><circle r="15" fill="#C27655" fill-opacity=".22" stroke="#C27655" stroke-width="3"/><circle r="5" fill="#C27655" stroke="#fff" stroke-width="2"/></g>`;}
+function handleShotGoalClick(event){
+  if(!appState.currentPendingShot){showSensorToast('disconnected','Noch kein Sensorschuss','Die Torposition wird erst nach einem echten Schuss erfasst.');return;}
+  const svg=byId('shotGoalPickSvg'),rect=svg.getBoundingClientRect();const px=clamp((event.clientX-rect.left)/rect.width*600,0,600),py=clamp((event.clientY-rect.top)/rect.height*300,0,300);
+  const y=+(((px-300)/300)*6).toFixed(2),z=+(clamp((275-py)/50,0,5)).toFixed(2);
+  const shot=appState.currentPendingShot;shot.clickedGoal={y_goal_m:y,z_goal_m:z};shot.goalOutcome=classifyGoal(y,z);appState.lastClickedGoal=shot.clickedGoal;
+  sendBleCommand({cmd:'calibrate',y_goal:y,z_goal:z});
+  if(appState.calibration.calib_count<5){appState.calibration.calib_count++;}
+  if(byId('goalClickedCoordsText'))byId('goalClickedCoordsText').textContent=`${fmt(y,2)} m / ${fmt(z,2)} m`;
+  updateGoalPreview(shot);syncGoalCalibrationHeader();drawShotGoalMarker(y,z);
+  appState.currentPendingShot=null;
+  byId('modalShotGoal').classList.add('hidden');
+  afterShotGoalCompleted(shot,!appState.validationSession);
+  if(appState.validationSession)showValidationModal(shot);
+}
+function classifyGoal(y,z){const goal=Math.abs(y)<=3.66&&z<=2.44;return{is_goal:goal,y_goal_m:y,z_goal_m:z};}
+function skipShotGoal(){if(appState.calibration.calib_count<5)return;const shot=appState.currentPendingShot;if(shot)shot.goalSkipped=true;appState.currentPendingShot=null;byId('modalShotGoal')?.classList.add('hidden');if(shot){afterShotGoalCompleted(shot,!appState.validationSession);if(appState.validationSession)showValidationModal(shot);}}
+function afterShotGoalCompleted(shot,resume=true){pushCoachMessage(buildShotCoachNarrative(shot));refreshTrainingDashboardUI();if(resume)resumeCalibrationFlow();}
+function updateGoalPreview(shot){const rec=shot.raw.reconstructed;if(!Number.isFinite(Number(rec.y_goal_m))||!Number.isFinite(Number(rec.z_goal_m)))return;renderGoalMarkers(Number(rec.y_goal_m),Number(rec.z_goal_m));if(byId('goalEstCoordsText'))byId('goalEstCoordsText').textContent=`${fmt(rec.y_goal_m,1)} m / ${fmt(rec.z_goal_m,1)} m`;}
+function renderGoalMarkers(y,z){const layer=byId('goalMarkersLayer');if(!layer)return;const x=200+(y/3.66)*138,py=152-(z/2.44)*108;layer.innerHTML=`<g transform="translate(${clamp(x,4,396)} ${clamp(py,4,181)})"><circle r="11" fill="#C27655" fill-opacity=".2" stroke="#C27655" stroke-width="2.5" stroke-dasharray="3 2"/><circle r="4" fill="#C27655"/></g>`;}
+
+function scoreCoachingMetrics(rec,techKey,heightKey,foot=appState.activeFoot){const meta=TECHNIQUES_META[techKey]||TECHNIQUES_META.Vollspann;const psi=applyFootSign(rec.psi_n_deg,foot),roll=applyFootSign(rec.phi_roll_deg,foot);const q=clamp(finite(rec.Q_omega)*100,0,100);const stability=clamp(100-finite(rec.dtheta_norm)*260,15,100);const tMid=(meta.tStossRange[0]+meta.tStossRange[1])/2;const contact=clamp(96-Math.abs(finite(rec.T_stoss_ms)-tMid)*14,20,100);const swing=clamp(55+finite(rec.alpha_rel_s1)*14,20,100);const tauMid=(meta.tauHalfRange[0]+meta.tauHalfRange[1])/2;const follow=clamp(95-Math.abs(finite(rec.tau_half_ms)-tauMid)*.65,20,100);const psiMid=(meta.psiRange[0]+meta.psiRange[1])/2,psiSpan=Math.max(6,(meta.psiRange[1]-meta.psiRange[0])/2);const footScore=clamp(96-Math.abs(psi-psiMid)/psiSpan*22,20,100);const radarScores=[q,stability,contact,swing,follow,footScore].map(Math.round);return{radarScores,overallScore:Math.round(radarScores.reduce((a,b)=>a+b,0)/radarScores.length),shoeMatchPct:Math.round(footScore),normPsi:psi,normRoll:roll};}
+function getActiveDashboardData(){const n=appState.sessionShots.length;if(!n)return null;const shots=appState.sessionShots;if(appState.displayMode==='last'){const s=shots[n-1];return{isAverage:false,shotCount:n,rec:s.raw.reconstructed,eval:s.eval,foot:s.raw.foot,shot:s};}
+  const keys=RECONSTRUCTED_CSV_FIELDS.filter(k=>k!=='on_target');const rec={};keys.forEach(k=>{const values=shots.map(s=>Number(s.raw.reconstructed[k])).filter(Number.isFinite);if(values.length)rec[k]=values.reduce((a,b)=>a+b,0)/values.length;});rec.v_ball_kmh=Number.isFinite(rec.v_ball_kmh)?rec.v_ball_kmh:finite(rec.v_ball_mps)*3.6;rec.on_target=shots.filter(s=>s.raw.reconstructed.on_target===true).length>n/2;
+  const scores=[0,1,2,3,4,5].map(i=>Math.round(shots.reduce((a,s)=>a+s.eval.radarScores[i],0)/n));const evalResult={radarScores:scores,overallScore:Math.round(scores.reduce((a,b)=>a+b,0)/6),shoeMatchPct:Math.round(shots.reduce((a,s)=>a+s.eval.shoeMatchPct,0)/n),normPsi:applyFootSign(rec.psi_n_deg,appState.activeFoot),normRoll:applyFootSign(rec.phi_roll_deg,appState.activeFoot)};return{isAverage:true,shotCount:n,rec,eval:evalResult,foot:appState.activeFoot,shot:shots[n-1]};}
+function switchMetricDisplayMode(mode,announce=true){appState.displayMode=mode==='avg'?'avg':'last';const a=byId('btnToggleViewLast'),b=byId('btnToggleViewAvg');if(a)a.className=appState.displayMode==='last'?'flex-1 px-2 py-1.5 rounded-lg bg-white text-charcoal shadow-sm':'flex-1 px-2 py-1.5 rounded-lg text-neutral-600';if(b)b.className=appState.displayMode==='avg'?'flex-1 px-2 py-1.5 rounded-lg bg-white text-charcoal shadow-sm':'flex-1 px-2 py-1.5 rounded-lg text-neutral-600';refreshTrainingDashboardUI();if(announce&&appState.displayMode==='avg'&&appState.sessionShots.length)pushCoachMessage(buildSessionCoachNarrative());}
+function renderEmptyDashboard(){const ids=['valPsiN','valThetaPitch','valPhiRoll','valQOmega','valDTheta','valAlphaRel','valThetaFT','valCoreTreffer','valTauHalf','metricImpactForce','metricEffectiveMass','metricKInd','valVBallKmh','valVBallMps','valETanPct','metricQOmegaSecondary','metricCompression','subQOmega','unitDTheta','subDTheta','subAlphaRel','subTauHalf','subCoreTreffer','subCoreHaltung','targetThetaPitch','targetPhiRoll','labelPsiZone'];ids.forEach(id=>{if(byId(id))byId(id).textContent='–';});if(byId('sessionShotsCountBadge'))byId('sessionShotsCountBadge').textContent='0 Schüsse';if(byId('radarModeSublabel'))byId('radarModeSublabel').textContent='Noch keine Messung';if(byId('radarOverallPill')){byId('radarOverallPill').textContent='–';byId('radarOverallPill').style.backgroundColor='#9CA3AF';}if(byId('shoeMatchBadge')){byId('shoeMatchBadge').textContent='–';byId('shoeMatchBadge').style.backgroundColor='#9CA3AF';}if(byId('trainingRadarSvg'))byId('trainingRadarSvg').innerHTML='';if(byId('trainingShoeSvg'))byId('trainingShoeSvg').innerHTML='';if(byId('goalMarkersLayer'))byId('goalMarkersLayer').innerHTML='';}
+function refreshTrainingDashboardUI(){const data=getActiveDashboardData();if(!data){renderEmptyDashboard();return;}const rec=data.rec,ev=data.eval,tier=getScoreTier(ev.overallScore);if(byId('sessionShotsCountBadge'))byId('sessionShotsCountBadge').textContent=`${data.shotCount} ${data.shotCount===1?'Schuss':'Schüsse'}`;if(byId('radarModeSublabel'))byId('radarModeSublabel').textContent=appState.displayMode==='avg'?`Durchschnitt · ${data.shotCount} Schüsse`:`Aktueller Schuss · #${data.shotCount}`;if(byId('radarOverallPill')){byId('radarOverallPill').textContent=`${tier.label} (${ev.overallScore}%)`;byId('radarOverallPill').style.backgroundColor=tier.color;}renderHexagonRadar('trainingRadarSvg',ev.radarScores,ev.overallScore);if(byId('shoeMatchBadge')){byId('shoeMatchBadge').textContent=`${ev.shoeMatchPct}% Technik-Fit`;byId('shoeMatchBadge').style.backgroundColor=getScoreTier(ev.shoeMatchPct).color;}if(byId('shoeFootLabel'))byId('shoeFootLabel').textContent=appState.activeFoot==='L'?'Linker Schuh · Draufsicht':'Rechter Schuh · Draufsicht';renderFootHeatmap('trainingShoeSvg',appState.displayMode,appState.activeFoot);
+  const psi=ev.normPsi,roll=ev.normRoll;const psiLabel=psi>22?'Innenrist':(psi< -22?'Außenrist':'Frontal');const alpha=finite(rec.alpha_n_deg);const alphaLabel=alpha< -8?'Unter dem Ball':(alpha>8?'Über dem Ball':'Mittig');const pitch=finite(rec.theta_pitch_deg);const pitchLabel=pitch< -12?'Spitze tief':(pitch>10?'Spitze hoch':'Neutral');const rollLabel=Math.abs(roll)<12?'Flach':(Math.abs(roll)<35?'Leicht eingedreht':'Stark eingedreht');const d=finite(rec.dtheta_norm);const stabilityLabel=d<.10?'Sehr fest':(d<.22?'Stabil':'Nachgegeben');const ft=finite(rec.theta_ft_deg);const ftLabel=ft<30?'Kurz':(ft<60?'Sauber durchgezogen':'Sehr weit');
+  setText('valPsiN',psiLabel);setText('labelPsiZone',psiLabel);setText('valThetaPitch',pitchLabel);setText('targetThetaPitch','Längsneigung beim Treffen');setText('valPhiRoll',rollLabel);setText('targetPhiRoll','Seitliche Schuhstellung');setText('valQOmega',`${Math.round(finite(rec.Q_omega)*100)}%`);setText('subQOmega',`Effiziente Übertragung · ${fmt(rec.M_eff_kg,2)} kg effektive Masse`);setText('valDTheta',stabilityLabel);setText('unitDTheta','');setText('subDTheta',`Knöchel-Stabilität · ${fmt(rec.dtheta_norm,3)}`);setText('valAlphaRel',finite(rec.alpha_rel_s1)>=1.5?'Explosiv':(finite(rec.alpha_rel_s1)>=.6?'Konstant':'Abgebremst'));setText('subAlphaRel','Beinbeschleunigung bis zum Treffmoment');setText('valThetaFT',ftLabel);setText('subTauHalf',`Durchschwung · ${fmt(rec.theta_ft_deg,0)}° · Abbremsen ${fmt(rec.tau_half_ms,0)} ms`);setText('valCoreTreffer',alphaLabel);setText('subCoreTreffer','Treffpunkt vertikal am Ball');setText('valTauHalf',`${fmt(rec.T_stoss_ms,2)} ms`);setText('subCoreHaltung',`Ball-Kompression: ${fmt(rec.delta_max_cm,2)} cm`);setText('metricImpactForce',`${fmt(rec.a_peak_g,1)} g`);setText('metricEffectiveMass',`${fmt(rec.M_eff_kg,2)} kg`);setText('metricKInd',fmt(rec.k_ind,3));setText('metricQOmegaSecondary',`${Math.round(finite(rec.Q_omega)*100)}%`);setText('metricCompression',`${fmt(rec.delta_max_cm,2)} cm`);setText('valVBallKmh',fmt(rec.v_ball_kmh??finite(rec.v_ball_mps)*3.6,1));setText('valVBallMps',`${fmt(rec.v_ball_mps,1)} m/s`);setText('valETanPct',`${fmt(finite(rec.E_tan)*100,1)}%`);setText('subETanDesc',spinDescription(rec.E_tan,appState.selectedTech));const badge=byId('knuckleEffectBadge');if(badge)badge.classList.toggle('hidden',finite(rec.E_tan)>=.05);updateGoalPreview(data.shot);syncGoalCalibrationHeader();}
+function setText(id,value){if(byId(id))byId(id).textContent=value;}
+function spinDescription(value,tech){if(tech==='Top-Spin')return'Vertikaler Dip-Anteil';if(finite(value)<.06)return'Geringer Spin-Anteil';if(finite(value)<.22)return'Moderater Spin-Anteil';return'Hoher Spin-Anteil';}
+function renderHexagonRadar(id,scores,overall){const svg=byId(id);if(!svg)return;const labels=['Kraft','Stabilität','Kontakt','Schwung','Durchschwung','Treffpunkt'];const cx=170,cy=170,r=112;const pt=(i,p)=>{const a=(Math.PI*2*i/6)-Math.PI/2,rr=r*p/100;return{x:cx+Math.cos(a)*rr,y:cy+Math.sin(a)*rr};};let markup='';[25,50,75,100].forEach(level=>{const points=labels.map((_,i)=>{const q=pt(i,level);return`${q.x},${q.y}`;}).join(' ');markup+=`<polygon points="${points}" fill="none" stroke="#D6D3D1" stroke-width="1"/>`;});labels.forEach((label,i)=>{const end=pt(i,100),lab=pt(i,126);markup+=`<line x1="${cx}" y1="${cy}" x2="${end.x}" y2="${end.y}" stroke="#D6D3D1"/><text x="${lab.x}" y="${lab.y}" font-size="10" fill="#57534e" text-anchor="middle">${label}</text>`;});const pts=scores.map((v,i)=>{const q=pt(i,v);return`${q.x},${q.y}`;}).join(' ');const t=getScoreTier(overall);markup+=`<polygon points="${pts}" fill="${t.color}" fill-opacity=".18" stroke="${t.color}" stroke-width="3"/>`;scores.forEach((v,i)=>{const q=pt(i,v);markup+=`<circle cx="${q.x}" cy="${q.y}" r="4" fill="${t.color}" stroke="#fff" stroke-width="1.5"/>`;});svg.innerHTML=markup;}
+function heatmapCoordinates(rec,foot){const psi=applyFootSign(rec.psi_n_deg,foot);let x=75+clamp(psi/85,-1,1)*35;if(foot==='L')x=150-x;const alpha=clamp(finite(rec.alpha_n_deg),-45,45);const pitch=clamp(finite(rec.theta_pitch_deg),-60,30);let y=190-((alpha+45)/90)*120-(pitch+15)*.22;y=clamp(y,35,210);return{x,y};}
+function renderFootHeatmap(id,mode,foot){const svg=byId(id);if(!svg)return;const mirror=foot==='L'?'transform="translate(150 0) scale(-1 1)"':'';const shape=`<g ${mirror}><path d="M75 8 C52 10 36 28 34 54 C31 91 42 124 40 157 C38 184 46 218 57 237 C63 248 87 248 93 237 C104 218 112 184 110 157 C108 124 119 91 116 54 C114 28 98 10 75 8Z" fill="#E8E4D9" stroke="#B8B6AE" stroke-width="3"/><path d="M49 48 Q75 32 101 48 L105 92 Q75 105 45 92Z" fill="#D7C6A6" opacity=".75"/><path d="M50 101 Q75 89 100 101 L99 150 Q75 163 51 150Z" fill="#F4F1E8" stroke="#C4BDAF"/><path d="M50 103L100 103 M51 115L99 115 M52 127L98 127 M54 139L96 139" stroke="#A69E91" stroke-width="2" stroke-linecap="round"/><path d="M45 75 Q26 110 43 143" fill="none" stroke="#A6B5A4" stroke-width="8" stroke-linecap="round"/><path d="M105 75 Q124 110 107 143" fill="none" stroke="#A6B5A4" stroke-width="8" stroke-linecap="round"/><path d="M53 178 Q75 165 97 178 L95 213 Q75 226 55 213Z" fill="#D8D3C8" stroke="#B8B0A4"/><text x="75" y="27" text-anchor="middle" font-size="8" font-weight="bold" fill="#49443D">ZEHEN</text><text x="75" y="126" text-anchor="middle" font-size="8" font-weight="bold" fill="#655C4D">VOLLSPANN</text><text x="26" y="113" text-anchor="middle" font-size="7" fill="#d9e3d6" transform="rotate(-90 26 113)">INNENRIST</text><text x="124" y="113" text-anchor="middle" font-size="7" fill="#d9e3d6" transform="rotate(90 124 113)">AUSSENRIST</text><text x="75" y="228" text-anchor="middle" font-size="8" font-weight="bold" fill="#49443D">RIST</text></g>`;
+  const valid=appState.sessionShots.map(s=>({s,pt:heatmapCoordinates(s.raw.reconstructed,s.raw.foot)}));let impacts=[];
+  if(mode==='avg'){
+    const bins=new Map();valid.forEach(({pt})=>{const key=`${Math.round(pt.x/9)}:${Math.round(pt.y/9)}`;const b=bins.get(key)||{x:pt.x,y:pt.y,count:0};b.x=(b.x*b.count+pt.x)/(b.count+1);b.y=(b.y*b.count+pt.y)/(b.count+1);b.count++;bins.set(key,b);});
+    impacts=[...bins.values()].map(b=>{const color=b.count>=5?'#EF4444':b.count>=4?'#F97316':b.count>=3?'#EAB308':b.count>=2?'#16A34A':'#86EFAC';return`<g><circle cx="${b.x}" cy="${b.y}" r="${12+Math.min(9,b.count*2)}" fill="${color}" fill-opacity=".22"/><circle cx="${b.x}" cy="${b.y}" r="${5+Math.min(8,b.count*1.6)}" fill="${color}" fill-opacity=".85" stroke="#fff" stroke-width="1"/><text x="${b.x+11}" y="${b.y-9}" font-size="8" font-weight="bold" fill="#fff">${b.count>1?b.count:''}</text></g>`;});
+  }else if(valid.length){const p=valid[valid.length-1].pt;impacts=[`<circle cx="${p.x}" cy="${p.y}" r="17" fill="#C27655" fill-opacity=".25"/><circle cx="${p.x}" cy="${p.y}" r="8" fill="#C27655" stroke="#fff" stroke-width="2"/><circle cx="${p.x}" cy="${p.y}" r="2.5" fill="#fff"/>`];}
+  svg.innerHTML=shape+impacts.join('');}
+
+function buildShotCoachNarrative(shot){const rec=shot.raw.reconstructed,ev=shot.eval;const psi=applyFootSign(rec.psi_n_deg,shot.raw.foot),roll=applyFootSign(rec.phi_roll_deg,shot.raw.foot);const zone=psi>22?'Innenrist':(psi< -22?'Außenrist':'Frontaler Spann');const pitch=rec.theta_pitch_deg< -12?'Spitze tief':(rec.theta_pitch_deg>10?'Spitze hoch':'neutrale Fußneigung');const stability=rec.dtheta_norm<.1?'sehr fest':(rec.dtheta_norm<.22?'stabil':'mit erkennbarem Nachgeben');const spin=Math.round(finite(rec.E_tan)*100);const strengths=ev.radarScores.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);const weak=strengths[strengths.length-1];const focus=['Kraftübertragung','Knöchel-Stabilität','Kontaktzeit','Schwung-Dynamik','Durchschwung','Treffpunkt'][weak.i];let result=`Dein ${shot.sessionShotNumber}. Schuss erreicht ${ev.overallScore}% Gesamtbewertung. Der Ball wurde mit ${zone} getroffen; die Fußneigung war ${pitch.toLowerCase()}, das Sprunggelenk arbeitete ${stability}.`;
+  if(shot.clickedGoal)result+=` Der markierte Einschlag lag bei ${fmt(shot.clickedGoal.y_goal_m,2)} m seitlich und ${fmt(shot.clickedGoal.z_goal_m,2)} m Höhe.`;
+  result+=` Besonders stark ist heute ${['Kraftübertragung','Knöchel-Stabilität','Kontaktqualität','Schwung-Dynamik','Durchschwung','Treffpunktkontrolle'][strengths[0].i].toLowerCase()} (${strengths[0].v}%).`;
+  const optimization=weak.i===1?'Spanne den Fuß vor dem Treffmoment aktiv an und halte das Sprunggelenk bis nach dem Kontakt stabil.':weak.i===5?'Richte die Kontaktfläche konsequenter auf die gewählte Technik aus und wiederhole den Bewegungsablauf kontrolliert.':weak.i===2?'Triff den Ball kompakt und vermeide ein unnötig langes Nachgeben im Kontakt.':weak.i===4?'Lass das Bein nach dem Treffmoment in der für die Technik passenden Linie weiterlaufen.':weak.i===3?'Beschleunige das Bein gleichmäßiger bis zum Ball und bremse nicht vorzeitig ab.':'Übertrage den Schwung kontrolliert in den Ball, ohne die Fußstellung zu verlieren.';
+  result+=` Als nächster Hebel bietet sich ${focus.toLowerCase()} an: ${optimization} `;
+  result+=spin>22?`Der Spin-Anteil liegt bei ${spin}% – die Rotation ist deutlich sichtbar.`:`Der Spin-Anteil liegt bei ${spin}% – der Schuss bleibt vergleichsweise direkt.`;
+  result+=` Bleib bei dieser sauberen Wiederholung: Entscheidend ist, den besten Bewegungsablauf reproduzierbar zu treffen.`;return result;}
+function buildSessionCoachNarrative(){const d=getActiveDashboardData();if(!d)return'Für eine Verlaufsanalyse werden echte Sensorschüsse benötigt.';const shots=appState.sessionShots;const first=shots[0].eval.overallScore,last=shots[shots.length-1].eval.overallScore,delta=last-first;const avg=shots.reduce((a,s)=>a+s.eval.overallScore,0)/shots.length;const stability=shots.map(s=>s.eval.radarScores[1]);const spread=Math.max(...stability)-Math.min(...stability);const weakNames=['Kraftübertragung','Knöchel-Stabilität','Kontaktzeit','Schwung-Dynamik','Durchschwung','Treffpunkt'];const avgAxes=weakNames.map((name,i)=>({name,score:shots.reduce((a,s)=>a+s.eval.radarScores[i],0)/shots.length})).sort((a,b)=>a.score-b.score);let trend=delta>2?'Die Bewertung entwickelt sich nach oben.':delta< -2?'Die letzten Messungen liegen unter dem Einstieg; prüfe, ob Ermüdung oder Technikwechsel eine Rolle spielen.':'Die Gesamtbewertung bleibt im bisherigen Verlauf relativ konstant.';let consistency=spread<10?'Die Knöchel-Stabilität ist über die Schüsse hinweg recht konstant.':'Die Knöchel-Stabilität schwankt merklich; ein wiederholbarer Bewegungsablauf ist der wichtigste Hebel.';return `Über ${shots.length} echte Sensorschüsse liegt der Durchschnitt bei ${Math.round(avg)}%. ${trend} ${consistency} Der größte Trainingshebel ist aktuell ${avgAxes[0].name.toLowerCase()} (Ø ${Math.round(avgAxes[0].score)}%). Stärke die Wiederholbarkeit dieses Elements, ohne die aktuell stärkste Eigenschaft zu verlieren. Der Verlauf zeigt, dass sich Fortschritt durch gezielte, ruhige Wiederholungen aufbauen lässt.`;}
+function addCoachMessage(role,text){const list=byId('aiCoachChatList');if(!list)return;const bubble=document.createElement('div');bubble.className=role==='user'?'ml-5 rounded-2xl rounded-tr-md bg-charcoal text-white p-3':'mr-2 rounded-2xl rounded-tl-md bg-white border border-neutral-200 text-charcoal p-3';bubble.textContent=text;list.appendChild(bubble);list.scrollTop=list.scrollHeight;}
+function pushCoachMessage(text){addCoachMessage('coach',text);if(byId('coachModeBadge'))byId('coachModeBadge').textContent=appState.displayMode==='avg'?'Session-Verlauf':'Schuss-Analyse';}
+function askAiCoach(question){const q=String(question||'').trim();if(!q)return;addCoachMessage('user',q);const d=getActiveDashboardData();if(!d){pushCoachMessage('Für eine konkrete Einschätzung benötige ich zuerst einen echten Sensorschuss.');return;}const rec=d.rec,psi=applyFootSign(rec.psi_n_deg,appState.activeFoot),roll=applyFootSign(rec.phi_roll_deg,appState.activeFoot);let answer;
+  if(appState.displayMode==='avg')answer=buildSessionCoachNarrative();
+  else if(/stabil|knöchel|gelenk/i.test(q))answer=`Deine Knöchel-Stabilität liegt bei ${fmt(rec.dtheta_norm,3)}. Das entspricht ${rec.dtheta_norm<.1?'einem sehr festen Gelenk':rec.dtheta_norm<.22?'einer soliden Stabilität':'einem sichtbaren Nachgeben'}. Fixiere den Fuß bereits vor dem Kontakt und halte die Spannung bis nach dem Balltreffpunkt.`;
+  else if(/kraft|übertrag|power|härte/i.test(q))answer=`Die Kraftübertragung beträgt ${Math.round(finite(rec.Q_omega)*100)}%; die effektive Masse liegt bei ${fmt(rec.M_eff_kg,2)} kg. Für mehr Tempo ist ein kompakter Kontakt mit stabiler Fußstellung wichtiger als ein unkontrolliert härterer Schwung.`;
+  else if(/fuß|haltung|treff|kontakt/i.test(q))answer=`Der horizontale Treffpunkt wird als ${psi>22?'Innenrist':psi< -22?'Außenrist':'Frontal'} eingeordnet. Die Fußneigung ist ${rec.theta_pitch_deg< -12?'Spitze tief':rec.theta_pitch_deg>10?'Spitze hoch':'Neutral'}, die Kippung ${Math.abs(roll)<12?'Flach':Math.abs(roll)<35?'Leicht eingedreht':'Stark eingedreht'}. Wiederhole diese Stellung bewusst und vergleiche die nächsten Messungen.`;
+  else answer=buildShotCoachNarrative(d.shot||appState.sessionShots.at(-1));
+  pushCoachMessage(answer);}
+function handleAiCoachSubmit(event){event.preventDefault();const input=byId('aiCoachInput');if(!input)return;const q=input.value.trim();if(q){askAiCoach(q);input.value='';}}
+
+
+
+function goalSector(y,z){if(Math.abs(y)<1.22&&z>=.81&&z<=1.63)return'm';const left=y<0,right=y>0,upper=z>1.22;if(left)return upper?'lo':'lu';if(right)return upper?'ro':'ru';return'm';}
+function goalPrecision(y,z){const edgeDistance=Math.min(3.66-Math.abs(y),z,2.44-z);const normalized=clamp(edgeDistance/1.22,0,1);if(normalized>=.8)return 1;if(normalized>=.6)return 2;if(normalized>=.4)return 3;if(normalized>=.2)return 4;return 5;}
+function showValidationModal(shot){const rec=shot.raw.reconstructed,goal=shot.clickedGoal?classifyGoal(shot.clickedGoal.y_goal_m,shot.clickedGoal.z_goal_m):null;const isGoal=goal?goal.is_goal:null;byId('validationShotCounter').textContent=`Schuss ${shot.sessionShotNumber} · Serie ${Math.floor((shot.sessionShotNumber-1)/15)+1}`;byId('validationModalSummary').textContent=goal?`${isGoal?'Tor':'Fehlschuss'} · ${fmt(shot.clickedGoal.y_goal_m,2)} m / ${fmt(shot.clickedGoal.z_goal_m,2)} m`:'Torposition übersprungen · keine Tor-Klassifikation';byId('validationMissWrap').classList.toggle('hidden',isGoal!==false);const showEffet=['Innenseite-Effet','Außenrist'].includes(appState.selectedTech),showDip=appState.selectedTech==='Top-Spin';byId('validationEffetWrap').classList.toggle('hidden',!showEffet);byId('validationDipWrap').classList.toggle('hidden',!showDip);['validationMissReason','validationTechScore','validationEffetScore','validationDipScore','validationNotes'].forEach(id=>{if(byId(id))byId(id).value='';});appState.currentValidationShot=shot;byId('modalValidation').classList.remove('hidden');}
+function makeValidationRecord(shot,isValid=1){const rec=shot.raw.reconstructed,clicked=shot.clickedGoal;const goal=clicked?classifyGoal(clicked.y_goal_m,clicked.z_goal_m):null;const isGoal=goal?Number(goal.is_goal):'';const miss=goal&&!goal.is_goal?(byId('validationMissReason').value||''):'';const timestamp=shot.timestampIso||new Date().toISOString();const foot=shot.raw.foot;const record={shot_uid:globalThis.crypto?.randomUUID?crypto.randomUUID():`shot-${Date.now()}-${Math.random().toString(36).slice(2,9)}`,timestamp_iso:timestamp,session_id:appState.sessionId,shot_number_in_session:shot.sessionShotNumber,is_valid:isValid,mode:appState.selectedMode,technique:appState.selectedTech,foot,distance_m:appState.distanceM,pitch_position:appState.pitchPosition,is_goal:isGoal,goal_sector:goal&&goal.is_goal?goalSector(clicked.y_goal_m,clicked.z_goal_m):'',goal_precision:goal&&goal.is_goal?goalPrecision(clicked.y_goal_m,clicked.z_goal_m):'',miss_reason:miss,tech_score:byId('validationTechScore').value,effet_score:['Innenseite-Effet','Außenrist'].includes(appState.selectedTech)?byId('validationEffetScore').value:'',dip_score:appState.selectedTech==='Top-Spin'?byId('validationDipScore').value:'',notes:byId('validationNotes').value.trim(),psi_n_norm_deg:finite(rec.psi_n_deg)*(foot==='L'?-1:1),phi_roll_norm_deg:finite(rec.phi_roll_deg)*(foot==='L'?-1:1),clicked_y_goal_m:clicked?clicked.y_goal_m:'',clicked_z_goal_m:clicked?clicked.z_goal_m:''};RECONSTRUCTED_CSV_FIELDS.forEach(k=>{record[k]=rec[k]===undefined?'':rec[k];});if(record.v_ball_kmh===''&&rec.v_ball_mps!==undefined)record.v_ball_kmh=finite(rec.v_ball_mps)*3.6;return record;}
+function persistValidationRecord(record){appState.validationRecords.push(record);try{localStorage.setItem(VALIDATION_STORAGE_KEY,JSON.stringify(appState.validationRecords));}catch(error){showSensorToast('disconnected','Speicherung fehlgeschlagen','Der Browser konnte den Validierungsdatensatz nicht dauerhaft speichern.');}syncValidationSeriesUI();}
+function confirmValidationShot(){const shot=appState.currentValidationShot;if(!shot)return;if(!byId('validationTechScore').value){showSensorToast('disconnected','Technik-Score fehlt','Bitte vergebe einen Technik-Score von 1 bis 10.');return;}const goal=shot.clickedGoal?classifyGoal(shot.clickedGoal.y_goal_m,shot.clickedGoal.z_goal_m):null;if(goal&&!goal.is_goal&&!byId('validationMissReason').value){showSensorToast('disconnected','Fehlschuss-Grund fehlt','Bitte wähle daneben, drüber oder Mauer.');return;}if(['Innenseite-Effet','Außenrist'].includes(appState.selectedTech)&&!byId('validationEffetScore').value){showSensorToast('disconnected','Effet-Bewertung fehlt','Bitte bewerte den sichtbaren Effet von 1 bis 10.');return;}if(appState.selectedTech==='Top-Spin'&&!byId('validationDipScore').value){showSensorToast('disconnected','Dip-Bewertung fehlt','Bitte bewerte den sichtbaren Dip-Effekt von 1 bis 10.');return;}persistValidationRecord(makeValidationRecord(shot,1));byId('modalValidation').classList.add('hidden');appState.currentValidationShot=null;resumeCalibrationFlow();}
+function markValidationShotInvalid(){const shot=appState.currentValidationShot;if(!shot)return;persistValidationRecord(makeValidationRecord(shot,0));byId('modalValidation').classList.add('hidden');appState.currentValidationShot=null;resumeCalibrationFlow();}
+function discardValidationShot(){const shot=appState.currentValidationShot;if(!shot)return;appState.sessionShots=appState.sessionShots.filter(s=>s!==shot);byId('modalValidation').classList.add('hidden');appState.currentValidationShot=null;refreshTrainingDashboardUI();resumeCalibrationFlow();}
+function resumeCalibrationFlow(){if(appState.calibration.calib_count<5){openShotGoalModalForCalibration();byId('shotGoalTitle').textContent=`Kalibrierung ${appState.calibration.calib_count}/5`;byId('shotGoalFeedback').textContent=`${appState.calibration.calib_count}/5 Kalibrierungsschüsse erfasst. Warte auf den nächsten echten Schuss.`;}else if(!appState.calibrationDone){showCalibrationComplete();}}
+function showCalibrationComplete(){appState.calibrationDone=true;appState.goalPopupComplete=true;byId('modalShotGoal').classList.remove('hidden');byId('shotGoalEyebrow').textContent='Abgeschlossen';byId('shotGoalTitle').textContent='Kalibrierung abgeschlossen';byId('shotGoalHelp').textContent='Alle fünf Kalibrierungsschüsse wurden erfasst. Du kannst das Fenster schließen und normal weitertrainieren.';byId('shotGoalFeedback').textContent='Sensor-Kalibrierung 5/5.';byId('btnCloseCalibration').classList.remove('hidden');byId('btnSkipShotGoal').classList.add('hidden');byId('btnShotGoalConnect').classList.add('hidden');}
+function closeShotGoalModal(){if(appState.calibration.calib_count<5){showSensorToast('disconnected','Kalibrierung noch nicht abgeschlossen','Erfasse die fünf Kalibrierungsschüsse, bevor du dieses Fenster schließt.');return;}byId('modalShotGoal').classList.add('hidden');appState.goalPopupComplete=false;}
+function syncGoalCalibrationHeader(){const count=clamp(finite(appState.calibration.calib_count),0,5);setText('calibCountBadge',count>=5?'Kalibrierung abgeschlossen':`Kalibrierung ${count}/5`);setText('goalCardMainTitle',count>=5?'Trefferbild':'Kalibrierung');setText('goalCardSubtitle',count>=5?'Präzision / Tor-Übersicht':'Fünf Kalibrierungsschüsse');setText('modalCalibrationProgress',`${count}/5`);}
+function syncValidationSeriesUI(){const n=Math.max(0,appState.validationRecords.length-(appState.validationSessionStartCount||0));setText('validationSeriesCounter',`Serie ${Math.floor(n/15)+1} · ${n%15}/15`);}
+function clearValidationData(){if(!window.confirm('Alle gespeicherten Validierungsdaten dauerhaft löschen?'))return;appState.validationRecords=[];try{localStorage.removeItem(VALIDATION_STORAGE_KEY);}catch(e){}syncValidationSeriesUI();showSensorToast('connected','Validierungsdaten gelöscht','Der lokale Validierungsdatensatz wurde entfernt.');}
+function csvCell(value){const s=value===null||value===undefined?'':String(value);return/[",\n\r]/.test(s)?`"${s.replaceAll('"','""')}"`:s;}
+function downloadValidationCsv(){if(!appState.validationRecords.length){showSensorToast('disconnected','Keine Validierungsdaten','Es wurden noch keine bestätigten Schüsse gespeichert.');return;}const lines=[VALIDATION_CSV_COLUMNS.join(','),...appState.validationRecords.map(r=>VALIDATION_CSV_COLUMNS.map(k=>csvCell(r[k])).join(','))];const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`kickcoach_validierung_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
+
+function setTimeAttackWindow(v){appState.taWindowSec=clamp(finite(v,4),1.5,15);resetTimeAttackState();}
+function stopTimeAttackTimer(){if(appState.taInterval){clearInterval(appState.taInterval);appState.taInterval=null;}}
+function resetTimeAttackState(){stopTimeAttackTimer();appState.taPhase='idle';appState.taRemainingSec=appState.taWindowSec;setText('taStatusLabel','Bereit für Durchgang');setText('taTimerLabel',`3s Vorlauf + ${fmt(appState.taWindowSec,1)}s Schuss`);if(byId('taProgressFill'))byId('taProgressFill').style.width='100%';if(byId('btnStartTaRound'))byId('btnStartTaRound').textContent='Countdown starten';updateTimeAttackStreakUI();}
+function updateTimeAttackStreakUI(){setText('taStreakCountText',`${appState.taFastStreak} / 5`);}
+function startTimeAttackRound(){if(appState.selectedMode!=='Time Attack')return;stopTimeAttackTimer();appState.taPhase='prep';let prep=3;setText('taStatusLabel','Phase 1 · Bereit machen');if(byId('btnStartTaRound'))byId('btnStartTaRound').textContent='Countdown läuft';appState.taInterval=setInterval(()=>{if(appState.taPhase==='prep'){prep=Math.max(0,prep-.1);setText('taTimerLabel',`Bereit machen … ${Math.ceil(prep)}s`);if(prep<=0){appState.taPhase='active';appState.taRemainingSec=appState.taWindowSec;setText('taStatusLabel','JETZT SCHIESSEN');}}else if(appState.taPhase==='active'){appState.taRemainingSec=Math.max(0,appState.taRemainingSec-.1);setText('taTimerLabel',`${fmt(appState.taRemainingSec,1)}s Restzeit`);if(appState.taRemainingSec<=0){stopTimeAttackTimer();appState.taPhase='expired';setText('taStatusLabel','Zeit abgelaufen');if(byId('taProgressFill'))byId('taProgressFill').style.width='0%';openTimeAttackAlertModal('timeout','Zeit abgelaufen','Der Schuss kam nicht innerhalb des gewählten Zeitfensters.');}}},100);}
+function registerTimeAttackShot(){const remaining=appState.taRemainingSec;stopTimeAttackTimer();appState.taPhase='idle';appState.taFastStreak=remaining>1.5?appState.taFastStreak+1:0;updateTimeAttackStreakUI();setText('taStatusLabel',`Sensorschuss bei ${fmt(remaining,1)}s Restzeit`);if(appState.taFastStreak>=5)openTimeAttackAlertModal('streak','Zu einfach?','Fünf aufeinanderfolgende Schüsse lagen deutlich vor dem Zeitlimit. Passe die Zeit an.');}
+function openTimeAttackAlertModal(type,title,message){setText('taAlertHeadline',title);setText('taAlertMessage',message);if(byId('btnTaReduceTime'))byId('btnTaReduceTime').classList.toggle('hidden',type!=='streak');byId('modalTimeAttackAlert')?.classList.remove('hidden');}
+function closeTimeAttackAlertModal(){byId('modalTimeAttackAlert')?.classList.add('hidden');}
+function reduceTimeAttackWindowByHalfSec(){appState.taWindowSec=Math.max(1.5,appState.taWindowSec-.5);if(byId('taWindowSelect'))byId('taWindowSelect').value=String(appState.taWindowSec);appState.taFastStreak=0;closeTimeAttackAlertModal();resetTimeAttackState();}
+
+function beginStopHold(event){if(event?.cancelable)event.preventDefault();if(appState.stopHoldRafId)return;appState.stopHoldStartMs=performance.now();const ring=byId('holdStopRing'),caption=byId('holdStopCaption');const tick=now=>{const p=clamp((now-appState.stopHoldStartMs)/2000,0,1);if(ring)ring.setAttribute('stroke-dashoffset',String(270.17*(1-p)));if(caption)caption.textContent=p>=1?'Training wird beendet …':'2 Sek. gedrückt halten zum Beenden';if(p>=1){appState.stopHoldRafId=null;stopSessionTimer();navigateTo('screen-report');return;}appState.stopHoldRafId=requestAnimationFrame(tick);};appState.stopHoldRafId=requestAnimationFrame(tick);}
+function abortStopHold(event){if(event?.cancelable)event.preventDefault();if(appState.stopHoldRafId){cancelAnimationFrame(appState.stopHoldRafId);appState.stopHoldRafId=null;}if(byId('holdStopRing'))byId('holdStopRing').setAttribute('stroke-dashoffset','270.17');if(byId('holdStopCaption'))byId('holdStopCaption').textContent='2 Sek. gedrückt halten zum Beenden';}
+
+function populateReportScreen(){const n=appState.sessionShots.length;if(!n){setText('repModeTechHeading',`${appState.selectedMode} • ${appState.selectedTech}`);setText('repScoreBadge','Keine Messdaten');setText('repDurationText',formatDuration(appState.timerSec));setText('repShotCountText','0 Schüsse');setText('repAvgSpeedText','–');setText('repCoachingParagraph','In dieser Session ist kein echter Sensorschuss eingegangen. Es wurden keine Beispieldaten ergänzt.');return;}const shots=appState.sessionShots,avg=averageShots(shots),ev=scoreCoachingMetrics(avg,appState.selectedTech,appState.selectedHeight,appState.activeFoot),tier=getScoreTier(ev.overallScore);setText('repModeTechHeading',`${appState.selectedMode} • ${appState.selectedTech}`);setText('repScoreBadge',`${ev.overallScore}% (${tier.label})`);byId('repScoreBadge').style.backgroundColor=tier.color;setText('repDurationText',formatDuration(appState.timerSec));setText('repShotCountText',`${n} Schüsse`);setText('repAvgSpeedText',`${fmt(finite(avg.v_ball_mps)*3.6,1)} km/h`);renderHexagonRadar('reportRadarSvg',ev.radarScores,ev.overallScore);renderFootHeatmap('reportShoeSvg','avg',appState.activeFoot);setText('repShoeMatchText',`Trefferfläche: ${ev.shoeMatchPct}%`);setText('repCoachingParagraph',buildSessionCoachNarrative());setText('repDeltaScore','–');setText('repDeltaStab','–');setText('repDeltaQOmega','–');}
+function averageShots(shots){const result={};RECONSTRUCTED_CSV_FIELDS.forEach(k=>{const vals=shots.map(s=>Number(s.raw.reconstructed[k])).filter(Number.isFinite);if(vals.length)result[k]=vals.reduce((a,b)=>a+b,0)/vals.length;});return result;}
+function formatDuration(sec){return`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;}
+function openDiscardConfirmModal(){byId('modalDiscardConfirm')?.classList.remove('hidden');}
+function closeDiscardConfirmModal(){byId('modalDiscardConfirm')?.classList.add('hidden');}
+function confirmDiscardAndExit(){closeDiscardConfirmModal();stopSessionTimer();appState.sessionActive=false;appState.sessionShots=[];appState.currentPendingShot=null;byId('modalShotGoal')?.classList.add('hidden');byId('modalValidation')?.classList.add('hidden');navigateTo('screen-home');showSensorToast('connected','Training verworfen','Die Einheit wurde ohne Speichern beendet.');}
+function commitSaveSession(){if(!appState.sessionShots.length){showSensorToast('disconnected','Keine Schüsse vorhanden','Eine Session ohne echte Sensormessung wird nicht als Training gespeichert.');navigateTo('screen-home');return;}const avg=averageShots(appState.sessionShots),ev=scoreCoachingMetrics(avg,appState.selectedTech,appState.selectedHeight,appState.activeFoot);const now=new Date();const entry={id:`hist-${Date.now()}`,mode:appState.selectedMode,technique:appState.selectedTech,height:appState.selectedHeight,foot:appState.activeFoot,dateStr:now.toLocaleDateString('de-DE'),dateIso:now.toISOString(),daysAgo:0,duration:formatDuration(appState.timerSec),shotCount:appState.sessionShots.length,overallScore:ev.overallScore,radarScores:ev.radarScores,metrics:avg};appState.history.unshift(entry);try{localStorage.setItem(HISTORY_STORAGE_KEY,JSON.stringify(appState.history));}catch(e){}appState.sessionActive=false;appState.sessionShots=[];appState.currentPendingShot=null;navigateTo('screen-home');showSensorToast('connected','Training gespeichert',`${entry.mode} – ${entry.technique} wurde in der Historie gespeichert.`);}
+function openHistoryDetailModal(id){
+  const item=appState.history.find(h=>h.id===id);if(!item)return;
+  const m=item.metrics,foot=item.foot||'R';
+  setText('histModalDate',`Einheit vom ${item.dateStr} · ${item.duration} · ${foot==='L'?'Linker Fuß':'Rechter Fuß'}`);
+  setText('histModalTitle',`${item.mode} – ${item.technique}`);
+  setText('histModalPsiText',`Trefferfläche: ${applyFootSign(m.psi_n_deg,foot)>22?'Innenrist':applyFootSign(m.psi_n_deg,foot)<-22?'Außenrist':'Frontal'}`);
+  setText('histModalQOmega',`${Math.round(finite(m.Q_omega)*100)}%`);
+  setText('histModalDTheta',finite(m.dtheta_norm)<.1?'Sehr fest':finite(m.dtheta_norm)<.22?'Stabil':'Nachgegeben');
+  setText('histModalTau',`${fmt(m.tau_half_ms,1)} ms`);
+  setText('histModalHaltung',`${m.theta_pitch_deg< -12?'Spitze tief':m.theta_pitch_deg>10?'Spitze hoch':'Neutral'} / ${Math.abs(applyFootSign(m.phi_roll_deg,foot))<12?'Flach':'Eingedreht'}`);
+  setText('histModalVBall',`${fmt(finite(m.v_ball_mps)*3.6,1)} km/h`);
+  setText('histModalETan',`${fmt(finite(m.E_tan)*100,1)}%`);
+  byId('modalHistoryDetail')?.classList.remove('hidden');
+  renderHexagonRadar('histModalRadarSvg',item.radarScores,item.overallScore);
+  const prevShots=appState.sessionShots;
+  try{
+    appState.sessionShots=[{raw:{reconstructed:m,foot}}];
+    renderFootHeatmap('histModalShoeSvg','last',foot);
+  }finally{
+    appState.sessionShots=prevShots;
+  }
+}
+function closeHistoryDetailModal(){byId('modalHistoryDetail')?.classList.add('hidden');}
+function toggleHistoryFilterDrawer(){byId('historyFilterDrawer')?.classList.toggle('hidden');}
+function resetAllHistoryFilters(){['histFilterMode','histFilterTech','histFilterPeriod'].forEach(id=>{if(byId(id))byId(id).value='all';});applyHistoryFilters();}
+function applyHistoryFilters(){const mode=byId('histFilterMode')?.value||'all',tech=byId('histFilterTech')?.value||'all',period=byId('histFilterPeriod')?.value||'all';const count=[mode!=='all',tech!=='all',period!=='all'].filter(Boolean).length;if(byId('filterActiveCountBadge')){byId('filterActiveCountBadge').textContent=String(count);byId('filterActiveCountBadge').classList.toggle('hidden',count===0);}
+  const filtered=appState.history.filter(item=>{if(mode!=='all'&&item.mode!==mode)return false;if(tech!=='all'&&item.technique!==tech)return false;if(period!=='all'){const age=(Date.now()-new Date(item.dateIso||Date.now()).getTime())/86400000;if(period==='week'&&age>7)return false;if(period==='month'&&age>30)return false;}return true;});
+  setText('historyResultCountText',`${filtered.length} ${filtered.length===1?'gespeicherte Einheit':'gespeicherte Einheiten'}`);const list=byId('historyCardsList');if(!list)return;if(!filtered.length){list.innerHTML='<div class="apple-card p-6 text-center text-xs text-neutral-600">Noch keine gespeicherten Trainings. Starte ein Training und speichere echte Sensorschüsse, damit deine Historie gefüllt wird.</div>';return;}list.innerHTML=filtered.map(item=>{const tier=getScoreTier(item.overallScore);return `<div onclick="openHistoryDetailModal('${escapeHtml(item.id)}')" class="terracotta-card px-4 py-3.5 text-white cursor-pointer flex items-center justify-between"><div><div class="text-base font-extrabold">${escapeHtml(item.mode)} – ${escapeHtml(item.technique)} – ${escapeHtml(item.dateStr)}</div><div class="text-[11px] text-white/85 mt-0.5">${item.shotCount} Schüsse · ${item.foot==='L'?'Links':'Rechts'} · Ø ${fmt(finite(item.metrics.v_ball_mps)*3.6,1)} km/h</div></div><span class="px-2.5 py-1 rounded-xl text-xs font-extrabold text-white" style="background-color:${tier.color}">${item.overallScore}%</span></div>`;}).join('');}
+
+function play30sSplashAnimation(){const overlay=byId('splashScreenOverlay');if(!overlay)return;setTimeout(()=>{overlay.classList.add('opacity-0','pointer-events-none');setTimeout(()=>{overlay.classList.add('hidden');},350);},3000);}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  try{const h=JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY)||'[]');if(Array.isArray(h))appState.history=h;}catch(e){appState.history=[];}
+  try{const r=JSON.parse(localStorage.getItem(VALIDATION_STORAGE_KEY)||'[]');if(Array.isArray(r))appState.validationRecords=r;}catch(e){appState.validationRecords=[];}
+  try{appState.lastKnownShotId=localStorage.getItem(LAST_SHOT_STORAGE_KEY)||0;}catch(e){}
+  syncSensorHeaderUI();applyActiveFootToHeader();updateWallSummaryText();renderTechniqueCards();applyHistoryFilters();syncValidationSeriesUI();renderEmptyDashboard();play30sSplashAnimation();
+});
+</script></body>
+</html>
